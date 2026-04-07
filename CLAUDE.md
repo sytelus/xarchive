@@ -30,7 +30,7 @@ xarchive is a Chrome browser extension (Manifest V3) that exports all bookmarks 
 | `options.html` | Export UI markup |
 | `options.css` | Dark theme styling |
 | `lib/api.js` | GraphQL request construction, header assembly, feature flags |
-| `lib/fetcher.js` | Paginated fetching with retry, rate limiting, and resume support |
+| `lib/fetcher.js` | Paginated fetching with retry and rate limiting |
 | `lib/parser.js` | Response parsing: tweet extraction, tombstone handling, media/entities |
 | `lib/folders.js` | Folder enumeration and tweet-to-folder cross-referencing |
 | `lib/db.js` | IndexedDB storage layer via Dexie |

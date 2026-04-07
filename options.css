@@ -121,16 +121,6 @@ button:disabled {
   color: #f4212e;
 }
 
-#btn-clear {
-  background: transparent;
-  border-color: #536471;
-  color: #e7e9ea;
-}
-
-#btn-clear:hover {
-  background: rgba(239, 243, 244, 0.1);
-}
-
 /* Progress */
 .progress-bar-container {
   width: 100%;

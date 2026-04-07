@@ -470,7 +470,6 @@ async function runExportInner() {
       statPages.textContent = String(pageNum);
     },
     ...callbacks,
-    stateKey: 'main_bookmarks',
   });
 
   if (result.stopped) {
