@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>xarchive - Export X.com Bookmarks</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>xarchive</h1>
+      <p class="subtitle">Export all your X.com bookmarks</p>
+    </header>
+
+    <!-- Status Section -->
+    <section id="status-section" class="card">
+      <h2>Status</h2>
+      <div id="cred-status" class="status-item">
+        <span class="status-dot" id="cred-dot"></span>
+        <span id="cred-text">Checking credentials...</span>
+      </div>
+      <div id="queryid-status" class="status-item">
+        <span class="status-dot" id="queryid-dot"></span>
+        <span id="queryid-text">Checking query IDs...</span>
+      </div>
+      <div id="user-status" class="status-item">
+        <span class="status-dot" id="user-dot"></span>
+        <span id="user-text">Checking user session...</span>
+      </div>
+      <p id="hint-text" class="hint" style="display:none;"></p>
+    </section>
+
+    <!-- Controls Section -->
+    <section id="controls-section" class="card">
+      <div class="button-row">
+        <button id="btn-start" disabled>Start Export</button>
+        <button id="btn-pause" style="display:none;">Pause</button>
+        <button id="btn-resume" style="display:none;">Resume</button>
+        <button id="btn-stop" style="display:none;">Stop</button>
+      </div>
+      <div id="resume-prompt" style="display:none;" class="resume-prompt">
+        <p>A previous export was interrupted. <strong id="resume-count"></strong> bookmarks already saved.</p>
+        <button id="btn-resume-prev">Resume Previous Export</button>
+        <button id="btn-start-fresh">Start Fresh</button>
+      </div>
+    </section>
+
+    <!-- Progress Section -->
+    <section id="progress-section" class="card" style="display:none;">
+      <h2>Progress</h2>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      <div class="progress-stats">
+        <div class="stat">
+          <span class="stat-label">Phase</span>
+          <span class="stat-value" id="stat-phase">--</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Bookmarks</span>
+          <span class="stat-value" id="stat-bookmarks">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Pages</span>
+          <span class="stat-value" id="stat-pages">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Folders</span>
+          <span class="stat-value" id="stat-folders">--</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Rate Limited</span>
+          <span class="stat-value" id="stat-ratelimit">No</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Elapsed</span>
+          <span class="stat-value" id="stat-elapsed">0:00</span>
+        </div>
+      </div>
+      <div id="rate-limit-notice" class="notice" style="display:none;">
+        <p>Rate limited. Waiting <span id="cooldown-timer"></span>...</p>
+      </div>
+    </section>
+
+    <!-- Log Section -->
+    <section id="log-section" class="card">
+      <h2>Log</h2>
+      <div id="log" class="log-container"></div>
+    </section>
+
+    <!-- Complete Section -->
+    <section id="complete-section" class="card" style="display:none;">
+      <h2>Export Complete</h2>
+      <div class="complete-stats">
+        <p><strong id="complete-total">0</strong> bookmarks exported</p>
+        <p><strong id="complete-available">0</strong> available, <strong id="complete-unavailable">0</strong> unavailable</p>
+        <p><strong id="complete-folders">0</strong> folders found</p>
+        <p>Duration: <strong id="complete-duration">0:00</strong></p>
+      </div>
+      <div class="button-row">
+        <button id="btn-download">Download JSON</button>
+        <button id="btn-clear">Clear Stored Data</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

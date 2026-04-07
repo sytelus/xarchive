@@ -574,7 +574,7 @@ The `initiatorDomains` restriction (using the extension's own origin) prevents i
 
 **Issue:** X.com rotates GraphQL query IDs every 2-4 weeks. Hardcoded IDs will break.
 
-**Workaround (primary):** Intercept query IDs from live requests. When the user visits X.com, the web app makes GraphQL requests that contain current query IDs in the URL. Our MAIN world script captures these.
+**Workaround (primary):** Intercept query IDs from live requests. When the user visits X.com, the web app makes GraphQL requests that contain current query IDs in the URL. The service worker's `webRequest.onSendHeaders` listener captures these passively.
 
 **Workaround (fallback):** If the user hasn't navigated to bookmarks yet (so no bookmark-specific query IDs were captured), fetch X.com's main JS bundle and extract query IDs using regex. The bundles follow the pattern `https://abs.twimg.com/responsive-web/client-web*/main.*.js`.
 

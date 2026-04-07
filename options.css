@@ -1,0 +1,261 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0a0a0a;
+  color: #e7e9ea;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.subtitle {
+  color: #71767b;
+  margin-top: 0.25rem;
+}
+
+.card {
+  background: #16181c;
+  border: 1px solid #2f3336;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.card h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #e7e9ea;
+}
+
+/* Status indicators */
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #71767b;
+  flex-shrink: 0;
+}
+
+.status-dot.ok { background: #00ba7c; }
+.status-dot.error { background: #f4212e; }
+.status-dot.waiting { background: #ffd400; }
+
+.hint {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #1d1f23;
+  border-radius: 8px;
+  color: #ffd400;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Buttons */
+.button-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+button {
+  padding: 0.6rem 1.5rem;
+  border: 1px solid #2f3336;
+  border-radius: 9999px;
+  background: #1d9bf0;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+button:hover:not(:disabled) {
+  background: #1a8cd8;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#btn-pause, #btn-stop {
+  background: transparent;
+  border-color: #536471;
+  color: #e7e9ea;
+}
+
+#btn-pause:hover, #btn-stop:hover {
+  background: rgba(239, 243, 244, 0.1);
+}
+
+#btn-stop:hover {
+  border-color: #f4212e;
+  color: #f4212e;
+}
+
+#btn-clear {
+  background: transparent;
+  border-color: #536471;
+  color: #e7e9ea;
+}
+
+#btn-clear:hover {
+  background: rgba(239, 243, 244, 0.1);
+}
+
+/* Resume prompt */
+.resume-prompt {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #1d1f23;
+  border-radius: 8px;
+}
+
+.resume-prompt p {
+  margin-bottom: 0.75rem;
+  color: #ffd400;
+}
+
+.resume-prompt .button-row {
+  margin-top: 0;
+}
+
+#btn-resume-prev {
+  background: #1d9bf0;
+}
+
+#btn-start-fresh {
+  background: transparent;
+  border-color: #536471;
+  color: #e7e9ea;
+}
+
+/* Progress */
+.progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background: #2f3336;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #1d9bf0;
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.progress-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #71767b;
+  margin-bottom: 0.15rem;
+}
+
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #e7e9ea;
+}
+
+.notice {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 212, 0, 0.1);
+  border: 1px solid rgba(255, 212, 0, 0.3);
+  border-radius: 8px;
+  color: #ffd400;
+  text-align: center;
+}
+
+/* Log */
+.log-container {
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #71767b;
+}
+
+.log-container .log-entry {
+  padding: 0.15rem 0;
+  border-bottom: 1px solid #1d1f23;
+}
+
+.log-container .log-entry.error {
+  color: #f4212e;
+}
+
+.log-container .log-entry.warn {
+  color: #ffd400;
+}
+
+.log-container .log-entry.success {
+  color: #00ba7c;
+}
+
+/* Complete */
+.complete-stats {
+  margin-bottom: 1.25rem;
+  line-height: 1.8;
+}
+
+.complete-stats strong {
+  color: #1d9bf0;
+}
+
+/* Scrollbar */
+.log-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.log-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+  background: #2f3336;
+  border-radius: 3px;
+}
