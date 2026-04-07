@@ -346,7 +346,7 @@ async function discoverQueryIds() {
   const allFound = FOLDER_OPERATIONS.every((op) => currentQueryIds[op]);
   if (!hasRequiredQueryIds(currentQueryIds) || !allFound) {
     log('Scraping JS bundles for remaining query IDs...', 'info');
-    const scraped = await scrapeQueryIdsFromBundles();
+    const scraped = await scrapeQueryIdsFromBundles(log);
     if (scraped) {
       currentQueryIds = { ...currentQueryIds, ...scraped };
       await storeQueryIds(currentUserId, scraped);
@@ -423,7 +423,7 @@ async function runExportInner() {
   if (folders.length > 0) {
     if (!currentQueryIds.BookmarkFolderTimeline) {
       log(`Found ${folders.length} folder(s) but missing BookmarkFolderTimeline query ID. Scraping bundles...`, 'warn');
-      const scraped = await scrapeQueryIdsFromBundles();
+      const scraped = await scrapeQueryIdsFromBundles(log);
       if (scraped?.BookmarkFolderTimeline) {
         currentQueryIds = { ...currentQueryIds, ...scraped };
         await storeQueryIds(currentUserId, scraped);
