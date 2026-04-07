@@ -58,6 +58,7 @@ let elapsedInterval = null;
 let currentCreds = null;
 let currentQueryIds = {};
 let currentUserId = null;
+let currentScreenName = null;
 /** Active cooldown countdown interval, if any. Cleared on state transitions. */
 let cooldownInterval = null;
 
@@ -208,10 +209,14 @@ async function checkCredentials() {
   currentUserId = userId;
   currentCreds = creds;
 
+  // Read screen name captured by content script.
+  const stored = await chrome.storage.local.get('xarchive_screen_name');
+  currentScreenName = stored.xarchive_screen_name || null;
+
   // User ID indicator
   if (userId) {
     userDot.className = 'status-dot ok';
-    userText.textContent = `User ID: ${userId}`;
+    userText.textContent = currentScreenName ? `@${currentScreenName} (${userId})` : `User ID: ${userId}`;
   } else {
     userDot.className = 'status-dot error';
     userText.textContent = 'No user session detected';
@@ -543,10 +548,11 @@ async function handleDownload() {
 
   const data = await assembleExport({
     userId: currentUserId,
+    screenName: currentScreenName,
     durationSeconds: await getElapsedSeconds(),
   });
 
-  const filename = downloadJSON(data, currentUserId);
+  const filename = downloadJSON(data, currentScreenName || currentUserId);
   log(`Download started: ${filename}`, 'success');
 }
 
