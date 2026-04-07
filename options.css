@@ -209,7 +209,7 @@ button:disabled {
   color: #00ba7c;
 }
 
-/* Complete */
+/* Result */
 .complete-stats {
   margin-bottom: 1.25rem;
   line-height: 1.8;
@@ -217,6 +217,13 @@ button:disabled {
 
 .complete-stats strong {
   color: #1d9bf0;
+}
+
+.unavailable-reasons {
+  margin: 0.25rem 0 0.5rem 1.25rem;
+  font-size: 0.85rem;
+  color: #71767b;
+  line-height: 1.6;
 }
 
 /* Footer */

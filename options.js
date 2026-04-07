@@ -106,6 +106,7 @@ const resultHeading = $('result-heading');
 const resultTotal = $('result-total');
 const resultAvailable = $('result-available');
 const resultUnavailable = $('result-unavailable');
+const resultUnavailableReasons = $('result-unavailable-reasons');
 const resultFolders = $('result-folders');
 const resultDuration = $('result-duration');
 const btnDownload = $('btn-download');
@@ -531,15 +532,34 @@ async function showResult(reason) {
   const folders = await getAllFolders();
 
   const available = bookmarks.filter((b) => b.status === 'available').length;
-  const unavailable = bookmarks.length - available;
+  const unavailableList = bookmarks.filter((b) => b.status === 'unavailable');
   const elapsed = await getElapsedSeconds();
 
   resultHeading.textContent = reason === 'complete' ? 'Export Complete' : 'Export Stopped';
   resultTotal.textContent = String(bookmarks.length);
   resultAvailable.textContent = String(available);
-  resultUnavailable.textContent = String(unavailable);
+  resultUnavailable.textContent = String(unavailableList.length);
   resultFolders.textContent = String(folders.length);
   resultDuration.textContent = formatTime(elapsed);
+
+  // Show breakdown of unavailable reasons.
+  if (unavailableList.length > 0) {
+    const counts = {};
+    for (const bm of unavailableList) {
+      const r = bm.unavailable_reason || 'Unknown';
+      counts[r] = (counts[r] || 0) + 1;
+    }
+    resultUnavailableReasons.innerHTML = '';
+    resultUnavailableReasons.className = 'unavailable-reasons';
+    for (const [r, n] of Object.entries(counts)) {
+      const div = document.createElement('div');
+      div.textContent = `${n}x ${r}`;
+      resultUnavailableReasons.appendChild(div);
+    }
+    resultUnavailableReasons.style.display = '';
+  } else {
+    resultUnavailableReasons.style.display = 'none';
+  }
 
   setUIState(reason);
 }
@@ -627,7 +647,8 @@ btnDownload.addEventListener('click', handleDownload);
 // ---------------------------------------------------------------------------
 
 async function init() {
-  versionInfo.textContent = `v${VERSION} (${BUILD_DATE})`;
+  const buildLocal = new Date(BUILD_DATE).toLocaleString();
+  versionInfo.textContent = `v${VERSION} (${buildLocal})`;
   log('xarchive initialized.', 'info');
   await checkCredentials();
   await checkPriorExport();
