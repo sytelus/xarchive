@@ -41,7 +41,7 @@ The extension icon should now appear in your toolbar.
 4. **Start the export** -- click "Start Export". The extension automatically discovers the API query IDs it needs (by briefly opening x.com/i/bookmarks in a background tab), then fetches your bookmarks with built-in rate limiting. Bookmark count, page count, and elapsed time are shown in real time.
 5. **Download the JSON** -- when the export completes, click "Download JSON" to save the file.
 
-**How long will it take?** X.com's API does not report your total bookmark count, so the extension cannot show a percentage or ETA. Each page fetches ~20 bookmarks with a ~3 second delay between pages. Rough estimate: 1,000 bookmarks takes ~3 minutes, 10,000 takes ~30 minutes.
+**How long will it take?** X.com's API does not report your total bookmark count, so the extension cannot show a percentage or ETA. Each page fetches ~100 bookmarks with a ~3 second delay between pages. Rough estimate: 1,000 bookmarks takes ~30 seconds, 10,000 takes ~5 minutes.
 
 ### Tips
 
