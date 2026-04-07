@@ -303,6 +303,9 @@ async function runExport(resumeFromPrevious = false) {
   }
 }
 
+/** Folder-related operations whose IDs are desirable but not required. */
+const FOLDER_OPERATIONS = ['BookmarkFoldersSlice', 'BookmarkFolderTimeline'];
+
 /**
  * Try to discover any missing query IDs.
  *
@@ -341,9 +344,6 @@ async function discoverQueryIds() {
     queryidText.textContent = `Query IDs: ${ops}`;
   }
 }
-
-/** Folder-related operations whose IDs are desirable but not required. */
-const FOLDER_OPERATIONS = ['BookmarkFoldersSlice', 'BookmarkFolderTimeline'];
 
 /**
  * Inner export logic — separated so the outer function can wrap it in
@@ -512,12 +512,7 @@ async function showComplete() {
 
   const available = bookmarks.filter((b) => b.status === 'available').length;
   const unavailable = bookmarks.length - available;
-
-  // Live run: compute from startTime.  Restored: read saved value.
-  const savedDuration = await getExportState('export_duration_seconds');
-  const elapsed = startTime
-    ? Math.floor((Date.now() - startTime) / 1000)
-    : parseInt(savedDuration || '0', 10);
+  const elapsed = await getElapsedSeconds();
 
   completeTotal.textContent = String(bookmarks.length);
   completeAvailable.textContent = String(available);
@@ -535,14 +530,9 @@ async function showComplete() {
 async function handleDownload() {
   log('Assembling export JSON...', 'info');
 
-  const savedDuration = await getExportState('export_duration_seconds');
-  const durationSeconds = startTime
-    ? Math.floor((Date.now() - startTime) / 1000)
-    : parseInt(savedDuration || '0', 10);
-
   const data = await assembleExport({
     userId: currentUserId,
-    durationSeconds,
+    durationSeconds: await getElapsedSeconds(),
   });
 
   const filename = downloadJSON(data, currentUserId);
@@ -562,6 +552,20 @@ function formatTime(totalSeconds) {
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Get the export duration in seconds.
+ *
+ * During a live run, computes from `startTime`.  After page reopen
+ * (restored export), reads the value saved to IndexedDB.
+ *
+ * @returns {Promise<number>}
+ */
+async function getElapsedSeconds() {
+  if (startTime) return Math.floor((Date.now() - startTime) / 1000);
+  const saved = await getExportState('export_duration_seconds');
+  return parseInt(saved || '0', 10);
 }
 
 // ---------------------------------------------------------------------------
