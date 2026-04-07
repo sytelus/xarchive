@@ -50,6 +50,7 @@ The extension icon should now appear in your toolbar.
 - **Rate limiting**: The extension uses conservative delays (2.5s+ between requests) to protect your account. If X.com throttles requests, the extension backs off automatically and resumes after a cooldown.
 - **Folders**: If you have X Premium, bookmark folder assignments are included automatically.
 - **Re-downloading**: After a completed export, you can close and reopen the extension tab -- the download button remains available until you clear the stored data.
+- **VS Code warnings**: When opening the exported JSON in VS Code, you may see warnings about "ambiguous unicode characters." This is normal -- tweets contain multilingual text (Cyrillic, Arabic, CJK, emoji, etc.) that VS Code flags as lookalike characters. The data is correct; you can safely ignore or dismiss the warning.
 
 ## Project Status
 
