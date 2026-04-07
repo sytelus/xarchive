@@ -380,29 +380,34 @@ async function runExportInner(resumeFromPrevious) {
   }
 
   // -- Phase 2: Fetch folder contents ---------------------------------------
-  if (folders.length > 0 && currentQueryIds.BookmarkFolderTimeline) {
-    statPhase.textContent = 'Fetching folder contents';
-    log('Phase 2: Fetching folder contents...', 'info');
+  if (folders.length > 0) {
+    if (currentQueryIds.BookmarkFolderTimeline) {
+      statPhase.textContent = 'Fetching folder contents';
+      log('Phase 2: Fetching folder contents...', 'info');
 
-    await fetchFolderContents({
-      folders,
-      queryId: currentQueryIds.BookmarkFolderTimeline,
-      creds: currentCreds,
-      onLog: log,
-      onFolderProgress: (current, total, name) => {
-        statFolders.textContent = `${current}/${total}`;
-        statPhase.textContent = `Folder: ${name}`;
-      },
-      shouldStop: () => stopRequested,
-      shouldPause,
-      onRateLimit: callbacks.onRateLimit,
-      onCooldown: callbacks.onCooldown,
-    });
+      await fetchFolderContents({
+        folders,
+        queryId: currentQueryIds.BookmarkFolderTimeline,
+        creds: currentCreds,
+        onLog: log,
+        onFolderProgress: (current, total, name) => {
+          statFolders.textContent = `${current}/${total}`;
+          statPhase.textContent = `Folder: ${name}`;
+        },
+        shouldStop: () => stopRequested,
+        shouldPause,
+        onRateLimit: callbacks.onRateLimit,
+        onCooldown: callbacks.onCooldown,
+      });
 
-    if (stopRequested) {
-      log('Export stopped.', 'warn');
-      setUIState('idle');
-      return;
+      if (stopRequested) {
+        log('Export stopped.', 'warn');
+        setUIState('idle');
+        return;
+      }
+    } else {
+      log(`Found ${folders.length} folder(s) but missing BookmarkFolderTimeline query ID. ` +
+        'Folder assignments will be empty. To fix: open any bookmark folder in X.com, then re-export.', 'warn');
     }
   }
 
