@@ -428,7 +428,8 @@ async function runExportInner(resumeFromPrevious) {
   statPhase.textContent = 'Complete';
   log('Export complete! Assembling JSON...', 'success');
 
-  await saveExportState('export_start_time', String(startTime));
+  const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
+  await saveExportState('export_duration_seconds', String(durationSeconds));
   await saveExportState('export_complete', 'true');
 
   showComplete();
@@ -438,14 +439,26 @@ async function runExportInner(resumeFromPrevious) {
 // Completion UI
 // ---------------------------------------------------------------------------
 
-/** Populate the "Export Complete" section with stats from IndexedDB. */
+/**
+ * Populate the "Export Complete" section with stats from IndexedDB.
+ *
+ * Called both at the end of a live export run and on page reopen when
+ * a prior completed export is detected by {@link checkPriorExport}.
+ * In the latter case `startTime` is null, so the saved duration from
+ * IndexedDB is used instead.
+ */
 async function showComplete() {
   const bookmarks = await getAllBookmarks();
   const folders = await getAllFolders();
 
   const available = bookmarks.filter((b) => b.status === 'available').length;
   const unavailable = bookmarks.length - available;
-  const elapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+
+  // Live run: compute from startTime.  Restored: read saved value.
+  const savedDuration = await getExportState('export_duration_seconds');
+  const elapsed = startTime
+    ? Math.floor((Date.now() - startTime) / 1000)
+    : parseInt(savedDuration || '0', 10);
 
   completeTotal.textContent = String(bookmarks.length);
   completeAvailable.textContent = String(available);
@@ -463,14 +476,14 @@ async function showComplete() {
 async function handleDownload() {
   log('Assembling export JSON...', 'info');
 
-  const exportStartTime = parseInt(
-    (await getExportState('export_start_time')) || String(startTime || Date.now()),
-    10,
-  );
+  const savedDuration = await getExportState('export_duration_seconds');
+  const durationSeconds = startTime
+    ? Math.floor((Date.now() - startTime) / 1000)
+    : parseInt(savedDuration || '0', 10);
 
   const data = await assembleExport({
     userId: currentUserId,
-    startTime: exportStartTime,
+    durationSeconds,
   });
 
   const filename = downloadJSON(data, currentUserId);
