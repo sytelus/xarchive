@@ -17,7 +17,7 @@ import { getCredentials, getFreshCt0 } from './lib/api.js';
 import { getStoredQueryIds, hasRequiredQueryIds, scrapeQueryIdsFromBundles, captureQueryIdsViaTab, storeQueryIds } from './lib/query-ids.js';
 import { fetchAllBookmarks } from './lib/fetcher.js';
 import { fetchAllFolders, fetchFolderContents } from './lib/folders.js';
-import { getBookmarkCount, getAllBookmarks, getAllFolders, getExportState, saveExportState, clearExportState, clearAllData } from './lib/db.js';
+import { getBookmarkCount, getAllBookmarks, getAllFolders, getExportState, saveExportState, clearExportState, clearFolderData, clearAllData } from './lib/db.js';
 import { assembleExport, downloadJSON } from './lib/exporter.js';
 
 // ---------------------------------------------------------------------------
@@ -395,6 +395,10 @@ async function runExportInner(resumeFromPrevious) {
   };
 
   // -- Phase 1: Fetch folders -----------------------------------------------
+  // Clear stale folder data from any prior run so that deleted folders
+  // and removed tweet-folder mappings don't bleed into this export.
+  await clearFolderData();
+
   statPhase.textContent = 'Fetching folders';
   log('Phase 1: Fetching bookmark folders...', 'info');
 
