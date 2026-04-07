@@ -25,7 +25,7 @@
  */
 
 import { getCredentials, getFreshCt0 } from './lib/api.js';
-import { getStoredQueryIds, hasRequiredQueryIds, scrapeQueryIdsFromBundles, captureQueryIdsViaTab, storeQueryIds } from './lib/query-ids.js';
+import { getStoredQueryIds, hasRequiredQueryIds, scrapeQueryIdsFromBundles, captureQueryIdsViaTab, captureFolderQueryIdViaTab, storeQueryIds } from './lib/query-ids.js';
 import { fetchAllBookmarks } from './lib/fetcher.js';
 import { fetchAllFolders, fetchFolderContents } from './lib/folders.js';
 import { getBookmarkCount, getAllBookmarks, getAllFolders, getExportState, saveExportState, clearAllData } from './lib/db.js';
@@ -425,12 +425,21 @@ async function runExportInner() {
   }
 
   // -- Phase 2: Fetch folder contents ---------------------------------------
-  // Note: if BookmarkFolderTimeline is missing here, discoverQueryIds already
-  // tried both the background tab and bundle scraping.  Re-scraping would
-  // fetch the same bundles and get the same result, so we skip it.
   if (folders.length > 0) {
+    // If the initial discovery (background tab + bundle scraping) didn't
+    // find BookmarkFolderTimeline, try opening an actual folder in a
+    // background tab.  The main bookmarks page only triggers Bookmarks
+    // and BookmarkFoldersSlice; BookmarkFolderTimeline only fires when
+    // viewing a specific folder.
     if (!currentQueryIds.BookmarkFolderTimeline) {
-      log(`Found ${folders.length} folder(s) but BookmarkFolderTimeline query ID could not be discovered. Folder assignments will be empty.`, 'warn');
+      log(`Missing BookmarkFolderTimeline query ID. Opening folder in background tab...`, 'warn');
+      const qid = await captureFolderQueryIdViaTab(folders[0].id, currentUserId, log);
+      if (qid) {
+        currentQueryIds.BookmarkFolderTimeline = qid;
+        await storeQueryIds(currentUserId, { BookmarkFolderTimeline: qid });
+      } else {
+        log(`Could not capture BookmarkFolderTimeline. Folder assignments will be empty.`, 'warn');
+      }
     }
 
     if (currentQueryIds.BookmarkFolderTimeline) {
