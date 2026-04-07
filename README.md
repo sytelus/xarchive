@@ -14,7 +14,7 @@ A Chrome browser extension (Manifest V3) that exports all bookmarks from X.com f
 - Includes bookmark folder assignments (X Premium feature)
 - Rich data per bookmark: full text, author info, media URLs, engagement metrics, quoted tweets, entities
 - Handles long-form tweets (note tweets), deleted tweets, and visibility-restricted tweets
-- Resumable exports with persistent progress tracking
+- Pause/resume within a run; download partial results after stopping
 - Conservative rate limiting to protect your account
 - JSON output format
 
@@ -33,6 +33,19 @@ xarchive is not on the Chrome Web Store. Install it as an unpacked extension:
 
 The extension icon should now appear in your toolbar.
 
+## Updating
+
+To update to the latest version:
+
+1. **Pull the latest code**:
+   ```
+   cd xarchive
+   git pull
+   ```
+2. **Reload the extension** -- go to `chrome://extensions/` and click the refresh icon on the xarchive card
+
+The version number and build date are shown in the footer of the export page.
+
 ## Usage
 
 1. **Log in to X.com** -- browse any page on X.com so the extension can passively capture your authentication credentials in the background.
@@ -43,13 +56,28 @@ The extension icon should now appear in your toolbar.
 
 **How long will it take?** X.com's API does not report your total bookmark count, so the extension cannot show a percentage or ETA. Each page fetches ~100 bookmarks with a ~3 second delay between pages. Rough estimate: 1,000 bookmarks takes ~30 seconds, 10,000 takes ~5 minutes.
 
+### Controls
+
+| Button | When visible | What it does |
+|--------|-------------|--------------|
+| **Start Export** | Idle, stopped, or complete | Clears all stored data and begins a fresh export |
+| **Pause** | Exporting | Pauses the current run (can be resumed) |
+| **Resume** | Paused | Continues the paused export from where it left off |
+| **Stop** | Exporting or paused | Ends the run; collected data is available for download |
+| **Download JSON** | Stopped or complete | Downloads whatever bookmarks have been collected |
+
 ### Tips
 
-- **Large collections**: Exports are resumable. If you close the tab or the export is interrupted, reopen the extension and you'll be prompted to resume from where you left off.
-- **Rate limiting**: The extension uses conservative delays (2.5s+ between requests) to protect your account. If X.com throttles requests, the extension backs off automatically and resumes after a cooldown.
+- **Partial downloads**: If you stop an export mid-run, you can still download the bookmarks collected so far.
+- **Rate limiting**: The extension uses conservative delays (2.5s+ between requests) to protect your account. If X.com throttles requests, the extension backs off automatically.
 - **Folders**: If you have X Premium, bookmark folder assignments are included automatically.
-- **Re-downloading**: After a completed export, you can close and reopen the extension tab -- the download button remains available until you clear the stored data.
+- **Re-downloading**: After a completed or stopped export, you can close and reopen the extension tab -- the download button remains available until you start a new export.
 - **VS Code warnings**: When opening the exported JSON in VS Code, you may see warnings about "ambiguous unicode characters." This is normal -- tweets contain multilingual text (Cyrillic, Arabic, CJK, emoji, etc.) that VS Code flags as lookalike characters. The data is correct; you can safely ignore or dismiss the warning.
+
+## Links
+
+- **Repository**: [github.com/sytelus/xarchive](https://github.com/sytelus/xarchive)
+- **Issues**: [github.com/sytelus/xarchive/issues](https://github.com/sytelus/xarchive/issues)
 
 ## Project Status
 

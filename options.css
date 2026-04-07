@@ -131,29 +131,6 @@ button:disabled {
   background: rgba(239, 243, 244, 0.1);
 }
 
-/* Resume prompt */
-.resume-prompt {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: #1d1f23;
-  border-radius: 8px;
-}
-
-.resume-prompt p {
-  margin-bottom: 0.75rem;
-  color: #ffd400;
-}
-
-.resume-prompt .button-row {
-  margin-top: 0;
-}
-
-#btn-start-fresh, #btn-download-partial {
-  background: transparent;
-  border-color: #536471;
-  color: #e7e9ea;
-}
-
 /* Progress */
 .progress-bar-container {
   width: 100%;
@@ -250,6 +227,23 @@ button:disabled {
 
 .complete-stats strong {
   color: #1d9bf0;
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 1rem 0 0;
+  font-size: 0.75rem;
+  color: #536471;
+}
+
+footer a {
+  color: #1d9bf0;
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
 }
 
 /* Scrollbar */

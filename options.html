@@ -39,14 +39,6 @@
         <button id="btn-resume" style="display:none;">Resume</button>
         <button id="btn-stop" style="display:none;">Stop</button>
       </div>
-      <div id="resume-prompt" style="display:none;" class="resume-prompt">
-        <p>A previous export was interrupted. <strong id="resume-count"></strong> bookmarks already saved.</p>
-        <div class="button-row">
-          <button id="btn-resume-prev">Resume Previous Export</button>
-          <button id="btn-download-partial">Download What's Saved</button>
-          <button id="btn-start-fresh">Start Fresh</button>
-        </div>
-      </div>
     </section>
 
     <!-- Progress Section -->
@@ -92,20 +84,25 @@
       <div id="log" class="log-container"></div>
     </section>
 
-    <!-- Complete Section -->
-    <section id="complete-section" class="card" style="display:none;">
-      <h2 id="complete-heading">Export Complete</h2>
+    <!-- Result Section (shown after complete or stop) -->
+    <section id="result-section" class="card" style="display:none;">
+      <h2 id="result-heading">Export Complete</h2>
       <div class="complete-stats">
-        <p><strong id="complete-total">0</strong> bookmarks exported</p>
-        <p><strong id="complete-available">0</strong> available, <strong id="complete-unavailable">0</strong> unavailable</p>
-        <p><strong id="complete-folders">0</strong> folders found</p>
-        <p>Duration: <strong id="complete-duration">0:00</strong></p>
+        <p><strong id="result-total">0</strong> bookmarks exported</p>
+        <p><strong id="result-available">0</strong> available, <strong id="result-unavailable">0</strong> unavailable</p>
+        <p><strong id="result-folders">0</strong> folders found</p>
+        <p>Duration: <strong id="result-duration">0:00</strong></p>
       </div>
       <div class="button-row">
         <button id="btn-download">Download JSON</button>
-        <button id="btn-clear">Clear Stored Data</button>
       </div>
     </section>
+
+    <!-- Footer -->
+    <footer>
+      <span id="version-info"></span>
+      &middot; <a href="https://github.com/sytelus/xarchive" target="_blank" rel="noopener">GitHub</a>
+    </footer>
   </div>
 
   <script type="module" src="options.js"></script>

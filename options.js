@@ -3,28 +3,52 @@
  *
  * Orchestrates the full export flow:
  *   1. Check / display credential status.
- *   2. Discover query IDs (from storage or JS bundle scraping).
+ *   2. Discover query IDs (background tab + JS bundle scraping).
  *   3. Fetch bookmark folders (Phase 1) and their contents (Phase 2).
  *   4. Fetch all bookmarks with pagination (Phase 3).
- *   5. Assemble and download JSON (Phase 4).
+ *   5. Assemble and download JSON.
  *
- * All heavy work (API calls, IndexedDB, pagination) runs here in the
- * options page tab rather than the service worker, avoiding MV3
- * lifecycle termination issues.
+ * State machine (4 user actions: Start, Pause, Stop, Download):
+ *
+ *   idle ──Start──▶ exporting ──Pause──▶ paused ──Resume──▶ exporting
+ *                   │                    │
+ *                   └──Stop──▶ stopped ◀─┘
+ *                                │
+ *   complete ◀── (normal end)    ├── Download (stays stopped)
+ *     │                          └── Start ──▶ exporting (fresh)
+ *     ├── Download (stays complete)
+ *     └── Start ──▶ exporting (fresh)
+ *
+ * Start ALWAYS clears all data and begins fresh.
+ * Pause/Resume only applies within a running export.
+ * Stop ends the current run but keeps collected data for download.
  */
 
 import { getCredentials, getFreshCt0 } from './lib/api.js';
 import { getStoredQueryIds, hasRequiredQueryIds, scrapeQueryIdsFromBundles, captureQueryIdsViaTab, storeQueryIds } from './lib/query-ids.js';
 import { fetchAllBookmarks } from './lib/fetcher.js';
 import { fetchAllFolders, fetchFolderContents } from './lib/folders.js';
-import { getBookmarkCount, getAllBookmarks, getAllFolders, getExportState, saveExportState, clearExportState, clearFolderData, clearAllData } from './lib/db.js';
+import { getBookmarkCount, getAllBookmarks, getAllFolders, getExportState, saveExportState, clearAllData } from './lib/db.js';
 import { assembleExport, downloadJSON } from './lib/exporter.js';
+import { VERSION, BUILD_DATE } from './version.js';
 
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
-/** @type {'idle'|'exporting'|'paused'|'complete'|'error'} */
+/**
+ * @type {'idle'|'exporting'|'paused'|'stopped'|'complete'}
+ *
+ * Transitions:
+ *   idle      → exporting  (Start clicked)
+ *   exporting → paused     (Pause clicked)
+ *   exporting → stopped    (Stop clicked, or error with data)
+ *   exporting → complete   (all pages fetched)
+ *   paused    → exporting  (Resume clicked)
+ *   paused    → stopped    (Stop clicked)
+ *   stopped   → exporting  (Start clicked — fresh)
+ *   complete  → exporting  (Start clicked — fresh)
+ */
 let exportState = 'idle';
 let stopRequested = false;
 /** When non-null the fetcher blocks on `pauseGate.promise`. */
@@ -64,11 +88,6 @@ const btnStart = $('btn-start');
 const btnPause = $('btn-pause');
 const btnResume = $('btn-resume');
 const btnStop = $('btn-stop');
-const resumePrompt = $('resume-prompt');
-const resumeCount = $('resume-count');
-const btnResumePrev = $('btn-resume-prev');
-const btnDownloadPartial = $('btn-download-partial');
-const btnStartFresh = $('btn-start-fresh');
 
 const progressSection = $('progress-section');
 const statPhase = $('stat-phase');
@@ -81,17 +100,17 @@ const progressBar = $('progress-bar');
 const rateLimitNotice = $('rate-limit-notice');
 const cooldownTimer = $('cooldown-timer');
 
-const completeSection = $('complete-section');
-const completeHeading = $('complete-heading');
-const completeTotal = $('complete-total');
-const completeAvailable = $('complete-available');
-const completeUnavailable = $('complete-unavailable');
-const completeFolders = $('complete-folders');
-const completeDuration = $('complete-duration');
+const resultSection = $('result-section');
+const resultHeading = $('result-heading');
+const resultTotal = $('result-total');
+const resultAvailable = $('result-available');
+const resultUnavailable = $('result-unavailable');
+const resultFolders = $('result-folders');
+const resultDuration = $('result-duration');
 const btnDownload = $('btn-download');
-const btnClear = $('btn-clear');
 
 const logContainer = $('log');
+const versionInfo = $('version-info');
 
 // ---------------------------------------------------------------------------
 // Logging
@@ -142,14 +161,14 @@ function stopElapsedTimer() {
 // ---------------------------------------------------------------------------
 
 /**
- * Toggle button/section visibility to match the current export phase.
- * @param {'idle'|'exporting'|'paused'|'complete'|'error'} state
+ * Toggle button/section visibility to match the current export state.
+ * @param {'idle'|'exporting'|'paused'|'stopped'|'complete'} state
  */
 function setUIState(state) {
   exportState = state;
 
-  // Kill any lingering cooldown countdown from a previous export.
-  if (state === 'idle' || state === 'complete') {
+  // Kill any lingering cooldown countdown.
+  if (state !== 'exporting' && state !== 'paused') {
     if (cooldownInterval) {
       clearInterval(cooldownInterval);
       cooldownInterval = null;
@@ -157,20 +176,23 @@ function setUIState(state) {
     rateLimitNotice.style.display = 'none';
   }
 
-  // Progress bar: indeterminate animation while working, solid on complete.
+  // Progress bar: indeterminate animation while working.
   if (state === 'exporting' || state === 'paused') {
     progressBar.classList.add('indeterminate');
   } else {
     progressBar.classList.remove('indeterminate');
   }
 
-  btnStart.style.display = state === 'idle' ? '' : 'none';
+  const running = state === 'exporting' || state === 'paused';
+  const done = state === 'stopped' || state === 'complete';
+
+  // Start is visible when idle OR when there's a result to start over from.
+  btnStart.style.display = (state === 'idle' || done) ? '' : 'none';
   btnPause.style.display = state === 'exporting' ? '' : 'none';
   btnResume.style.display = state === 'paused' ? '' : 'none';
-  btnStop.style.display = (state === 'exporting' || state === 'paused') ? '' : 'none';
-  progressSection.style.display = (state === 'exporting' || state === 'paused') ? '' : 'none';
-  completeSection.style.display = state === 'complete' ? '' : 'none';
-  resumePrompt.style.display = 'none';
+  btnStop.style.display = running ? '' : 'none';
+  progressSection.style.display = running ? '' : 'none';
+  resultSection.style.display = done ? '' : 'none';
 }
 
 // ---------------------------------------------------------------------------
@@ -180,7 +202,6 @@ function setUIState(state) {
 /**
  * Read stored credentials and query IDs, update the status indicators,
  * and enable/disable the Start button accordingly.
- * @returns {Promise<{userId: string|null, creds: object|null}>}
  */
 async function checkCredentials() {
   const { userId, creds } = await getCredentials();
@@ -242,36 +263,24 @@ async function checkCredentials() {
   // Enable Start when we have at least some credentials.
   const hasCreds = creds?.authorization || (await getFreshCt0());
   btnStart.disabled = !hasCreds;
-
-  return { userId, creds };
 }
 
 // ---------------------------------------------------------------------------
-// Resume prompt
+// Prior export check (page reopen)
 // ---------------------------------------------------------------------------
 
 /**
- * Check for prior export state on page load.
- *
- * - If a previous export *completed*, jump straight to the download screen.
- * - If a previous export was *interrupted* (cursor saved), show the
- *   resume prompt so the user can pick up where they left off.
+ * On page load, check if a previous export left data in IndexedDB.
+ * Show the result section so the user can download or start fresh.
  */
 async function checkPriorExport() {
   const completed = await getExportState('export_complete');
-  if (completed) {
-    log('Previous export data found.', 'success');
-    await showComplete();
-    return;
-  }
-
-  const cursor = await getExportState('main_bookmarks_cursor');
+  const interrupted = await getExportState('export_interrupted');
   const count = await getBookmarkCount();
 
-  if (cursor && count > 0) {
-    resumePrompt.style.display = '';
-    resumeCount.textContent = `${count}`;
-    btnStart.style.display = 'none';
+  if ((completed || interrupted) && count > 0) {
+    log(`Previous export data found (${count} bookmarks).`, 'success');
+    await showResult(completed ? 'complete' : 'stopped');
   }
 }
 
@@ -280,26 +289,31 @@ async function checkPriorExport() {
 // ---------------------------------------------------------------------------
 
 /**
- * Run the full 4-phase export.
+ * Run the full export. Always starts fresh (clears all prior data).
  *
  * Wrapped in a try/catch so any unexpected error resets the UI to idle
  * rather than leaving it stuck in the "exporting" state.
- *
- * @param {boolean} [resumeFromPrevious=false] - If true, resume from
- *   the last saved cursor instead of starting fresh.
  */
-async function runExport(resumeFromPrevious = false) {
+async function runExport() {
   setUIState('exporting');
   stopRequested = false;
   startElapsedTimer();
 
-  log('Starting bookmark export...', 'info');
+  log('Starting fresh bookmark export...', 'info');
 
   try {
-    await runExportInner(resumeFromPrevious);
+    // Clear everything from prior runs.
+    await clearAllData();
+    await runExportInner();
   } catch (err) {
     log(`Unexpected error: ${err.message || err}`, 'error');
-    setUIState('idle');
+    // If we collected anything before the error, show it.
+    const count = await getBookmarkCount();
+    if (count > 0) {
+      await showResult('stopped');
+    } else {
+      setUIState('idle');
+    }
   } finally {
     stopElapsedTimer();
   }
@@ -351,7 +365,7 @@ async function discoverQueryIds() {
  * Inner export logic — separated so the outer function can wrap it in
  * a single try/catch/finally.
  */
-async function runExportInner(resumeFromPrevious) {
+async function runExportInner() {
   // -- Query ID discovery ---------------------------------------------------
   if (!hasRequiredQueryIds(currentQueryIds)) {
     statPhase.textContent = 'Discovering query IDs';
@@ -364,19 +378,12 @@ async function runExportInner(resumeFromPrevious) {
     }
   }
 
-  // -- Prepare state --------------------------------------------------------
-  if (!resumeFromPrevious) {
-    await clearExportState();
-    // Don't clear bookmarks — they'll be upserted (deduplicated by tweet_id).
-  }
-
   const { creds } = await getCredentials();
   currentCreds = creds;
 
   const callbacks = {
     onLog: log,
     onCooldown: (waitMs) => {
-      // Clear any prior cooldown interval before starting a new one.
       if (cooldownInterval) clearInterval(cooldownInterval);
       rateLimitNotice.style.display = '';
       let remaining = Math.ceil(waitMs / 1000);
@@ -397,10 +404,6 @@ async function runExportInner(resumeFromPrevious) {
   };
 
   // -- Phase 1: Fetch folders -----------------------------------------------
-  // Clear stale folder data from any prior run so that deleted folders
-  // and removed tweet-folder mappings don't bleed into this export.
-  await clearFolderData();
-
   statPhase.textContent = 'Fetching folders';
   log('Phase 1: Fetching bookmark folders...', 'info');
 
@@ -412,17 +415,13 @@ async function runExportInner(resumeFromPrevious) {
   statFolders.textContent = String(folders.length);
 
   if (stopRequested) {
-    log('Export stopped.', 'warn');
-    setUIState('idle');
+    await finishStopped();
     return;
   }
 
   // -- Phase 2: Fetch folder contents ---------------------------------------
   if (folders.length > 0) {
     if (!currentQueryIds.BookmarkFolderTimeline) {
-      // Last-resort: try bundle scraping specifically for this ID.
-      // The background tab (run in discovery) can't capture it because
-      // BookmarkFolderTimeline only fires when a user opens a folder.
       log(`Found ${folders.length} folder(s) but missing BookmarkFolderTimeline query ID. Scraping bundles...`, 'warn');
       const scraped = await scrapeQueryIdsFromBundles();
       if (scraped?.BookmarkFolderTimeline) {
@@ -450,8 +449,7 @@ async function runExportInner(resumeFromPrevious) {
       });
 
       if (stopRequested) {
-        log('Export stopped.', 'warn');
-        setUIState('idle');
+        await finishStopped();
         return;
       }
     } else {
@@ -477,61 +475,64 @@ async function runExportInner(resumeFromPrevious) {
 
   if (result.stopped) {
     log(`Export stopped: ${result.reason}`, 'warn');
-    await saveExportState('export_interrupted', 'true');
-
-    // Show the download screen so the user can grab what was collected.
-    const count = await getBookmarkCount();
-    if (count > 0) {
-      log(`${count} bookmarks saved. You can download what was collected or resume later.`, 'info');
-      const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
-      await saveExportState('export_duration_seconds', String(durationSeconds));
-      showComplete();
-    } else {
-      setUIState('idle');
-    }
+    await finishStopped();
     return;
   }
 
   // -- Phase 4: Complete ----------------------------------------------------
   statPhase.textContent = 'Complete';
-  log('Export complete! Assembling JSON...', 'success');
+  log('Export complete!', 'success');
 
   const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
   await saveExportState('export_duration_seconds', String(durationSeconds));
   await saveExportState('export_complete', 'true');
 
-  showComplete();
+  await showResult('complete');
+}
+
+/**
+ * Handle an export that was stopped (by user or by error).
+ * Saves state and shows the result screen if any data was collected.
+ */
+async function finishStopped() {
+  const count = await getBookmarkCount();
+  const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
+  await saveExportState('export_duration_seconds', String(durationSeconds));
+  await saveExportState('export_interrupted', 'true');
+
+  if (count > 0) {
+    log(`Stopped with ${count} bookmarks saved. You can download or start over.`, 'info');
+    await showResult('stopped');
+  } else {
+    log('Export stopped. No bookmarks collected.', 'warn');
+    setUIState('idle');
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Completion UI
+// Result UI (complete or stopped)
 // ---------------------------------------------------------------------------
 
 /**
- * Populate the "Export Complete" section with stats from IndexedDB.
- *
- * Called both at the end of a live export run and on page reopen when
- * a prior completed export is detected by {@link checkPriorExport}.
- * In the latter case `startTime` is null, so the saved duration from
- * IndexedDB is used instead.
+ * Populate and show the result section.
+ * @param {'complete'|'stopped'} reason
  */
-async function showComplete() {
+async function showResult(reason) {
   const bookmarks = await getAllBookmarks();
   const folders = await getAllFolders();
-  const interrupted = await getExportState('export_interrupted');
 
   const available = bookmarks.filter((b) => b.status === 'available').length;
   const unavailable = bookmarks.length - available;
   const elapsed = await getElapsedSeconds();
 
-  completeHeading.textContent = interrupted ? 'Export Stopped' : 'Export Complete';
-  completeTotal.textContent = String(bookmarks.length);
-  completeAvailable.textContent = String(available);
-  completeUnavailable.textContent = String(unavailable);
-  completeFolders.textContent = String(folders.length);
-  completeDuration.textContent = formatTime(elapsed);
+  resultHeading.textContent = reason === 'complete' ? 'Export Complete' : 'Export Stopped';
+  resultTotal.textContent = String(bookmarks.length);
+  resultAvailable.textContent = String(available);
+  resultUnavailable.textContent = String(unavailable);
+  resultFolders.textContent = String(folders.length);
+  resultDuration.textContent = formatTime(elapsed);
 
-  setUIState('complete');
+  setUIState(reason);
 }
 
 // ---------------------------------------------------------------------------
@@ -567,10 +568,8 @@ function formatTime(totalSeconds) {
 
 /**
  * Get the export duration in seconds.
- *
- * During a live run, computes from `startTime`.  After page reopen
- * (restored export), reads the value saved to IndexedDB.
- *
+ * During a live run computes from `startTime`; after page reopen
+ * reads the saved value from IndexedDB.
  * @returns {Promise<number>}
  */
 async function getElapsedSeconds() {
@@ -583,18 +582,7 @@ async function getElapsedSeconds() {
 // Event handlers
 // ---------------------------------------------------------------------------
 
-btnStart.addEventListener('click', () => runExport(false));
-
-btnResumePrev.addEventListener('click', () => runExport(true));
-
-btnDownloadPartial.addEventListener('click', handleDownload);
-
-btnStartFresh.addEventListener('click', async () => {
-  await clearAllData();
-  resumePrompt.style.display = 'none';
-  btnStart.style.display = '';
-  log('Cleared previous data. Ready for fresh export.', 'info');
-});
+btnStart.addEventListener('click', () => runExport());
 
 btnPause.addEventListener('click', () => {
   setUIState('paused');
@@ -615,7 +603,6 @@ btnResume.addEventListener('click', () => {
 
 btnStop.addEventListener('click', () => {
   stopRequested = true;
-  // Unblock the pause gate so the fetcher can see the stop signal.
   if (pauseGate) {
     pauseGate.resolve();
     pauseGate = null;
@@ -625,20 +612,12 @@ btnStop.addEventListener('click', () => {
 
 btnDownload.addEventListener('click', handleDownload);
 
-btnClear.addEventListener('click', async () => {
-  if (confirm('Clear all stored bookmark data?')) {
-    await clearAllData();
-    log('All stored data cleared.', 'info');
-    setUIState('idle');
-    await checkCredentials();
-  }
-});
-
 // ---------------------------------------------------------------------------
 // Initialization
 // ---------------------------------------------------------------------------
 
 async function init() {
+  versionInfo.textContent = `v${VERSION} (${BUILD_DATE})`;
   log('xarchive initialized.', 'info');
   await checkCredentials();
   await checkPriorExport();
