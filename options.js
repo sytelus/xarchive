@@ -67,6 +67,7 @@ const btnStop = $('btn-stop');
 const resumePrompt = $('resume-prompt');
 const resumeCount = $('resume-count');
 const btnResumePrev = $('btn-resume-prev');
+const btnDownloadPartial = $('btn-download-partial');
 const btnStartFresh = $('btn-start-fresh');
 
 const progressSection = $('progress-section');
@@ -81,6 +82,7 @@ const rateLimitNotice = $('rate-limit-notice');
 const cooldownTimer = $('cooldown-timer');
 
 const completeSection = $('complete-section');
+const completeHeading = $('complete-heading');
 const completeTotal = $('complete-total');
 const completeAvailable = $('complete-available');
 const completeUnavailable = $('complete-unavailable');
@@ -474,12 +476,19 @@ async function runExportInner(resumeFromPrevious) {
   });
 
   if (result.stopped) {
-    const isRecoverable = result.reason === 'user_stopped' || result.reason === 'rate_limit_exceeded';
     log(`Export stopped: ${result.reason}`, 'warn');
-    if (isRecoverable) {
-      await saveExportState('export_interrupted', 'true');
+    await saveExportState('export_interrupted', 'true');
+
+    // Show the download screen so the user can grab what was collected.
+    const count = await getBookmarkCount();
+    if (count > 0) {
+      log(`${count} bookmarks saved. You can download what was collected or resume later.`, 'info');
+      const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
+      await saveExportState('export_duration_seconds', String(durationSeconds));
+      showComplete();
+    } else {
+      setUIState('idle');
     }
-    setUIState('idle');
     return;
   }
 
@@ -509,11 +518,13 @@ async function runExportInner(resumeFromPrevious) {
 async function showComplete() {
   const bookmarks = await getAllBookmarks();
   const folders = await getAllFolders();
+  const interrupted = await getExportState('export_interrupted');
 
   const available = bookmarks.filter((b) => b.status === 'available').length;
   const unavailable = bookmarks.length - available;
   const elapsed = await getElapsedSeconds();
 
+  completeHeading.textContent = interrupted ? 'Export Stopped' : 'Export Complete';
   completeTotal.textContent = String(bookmarks.length);
   completeAvailable.textContent = String(available);
   completeUnavailable.textContent = String(unavailable);
@@ -575,6 +586,8 @@ async function getElapsedSeconds() {
 btnStart.addEventListener('click', () => runExport(false));
 
 btnResumePrev.addEventListener('click', () => runExport(true));
+
+btnDownloadPartial.addEventListener('click', handleDownload);
 
 btnStartFresh.addEventListener('click', async () => {
   await clearAllData();

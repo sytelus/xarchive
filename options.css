@@ -148,7 +148,7 @@ button:disabled {
   margin-top: 0;
 }
 
-#btn-start-fresh {
+#btn-start-fresh, #btn-download-partial {
   background: transparent;
   border-color: #536471;
   color: #e7e9ea;

@@ -41,8 +41,11 @@
       </div>
       <div id="resume-prompt" style="display:none;" class="resume-prompt">
         <p>A previous export was interrupted. <strong id="resume-count"></strong> bookmarks already saved.</p>
-        <button id="btn-resume-prev">Resume Previous Export</button>
-        <button id="btn-start-fresh">Start Fresh</button>
+        <div class="button-row">
+          <button id="btn-resume-prev">Resume Previous Export</button>
+          <button id="btn-download-partial">Download What's Saved</button>
+          <button id="btn-start-fresh">Start Fresh</button>
+        </div>
       </div>
     </section>
 
@@ -91,7 +94,7 @@
 
     <!-- Complete Section -->
     <section id="complete-section" class="card" style="display:none;">
-      <h2>Export Complete</h2>
+      <h2 id="complete-heading">Export Complete</h2>
       <div class="complete-stats">
         <p><strong id="complete-total">0</strong> bookmarks exported</p>
         <p><strong id="complete-available">0</strong> available, <strong id="complete-unavailable">0</strong> unavailable</p>
