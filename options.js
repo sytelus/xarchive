@@ -234,8 +234,21 @@ async function checkCredentials() {
 // Resume prompt
 // ---------------------------------------------------------------------------
 
-/** Show the resume prompt if a previous export was interrupted. */
-async function checkResume() {
+/**
+ * Check for prior export state on page load.
+ *
+ * - If a previous export *completed*, jump straight to the download screen.
+ * - If a previous export was *interrupted* (cursor saved), show the
+ *   resume prompt so the user can pick up where they left off.
+ */
+async function checkPriorExport() {
+  const completed = await getExportState('export_complete');
+  if (completed) {
+    log('Previous export data found.', 'success');
+    await showComplete();
+    return;
+  }
+
   const cursor = await getExportState('main_bookmarks_cursor');
   const count = await getBookmarkCount();
 
@@ -457,7 +470,6 @@ async function handleDownload() {
 
   const data = await assembleExport({
     userId: currentUserId,
-    screenName: currentUserId,
     startTime: exportStartTime,
   });
 
@@ -540,7 +552,7 @@ btnClear.addEventListener('click', async () => {
 async function init() {
   log('xarchive initialized.', 'info');
   await checkCredentials();
-  await checkResume();
+  await checkPriorExport();
 
   // Re-check credentials periodically (user might browse x.com in another tab).
   setInterval(async () => {

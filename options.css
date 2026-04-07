@@ -148,10 +148,6 @@ button:disabled {
   margin-top: 0;
 }
 
-#btn-resume-prev {
-  background: #1d9bf0;
-}
-
 #btn-start-fresh {
   background: transparent;
   border-color: #536471;
