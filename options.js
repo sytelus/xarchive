@@ -34,6 +34,8 @@ let elapsedInterval = null;
 let currentCreds = null;
 let currentQueryIds = {};
 let currentUserId = null;
+/** Active cooldown countdown interval, if any. Cleared on state transitions. */
+let cooldownInterval = null;
 
 /**
  * Called by the fetcher before each page request.  If paused, the
@@ -136,6 +138,15 @@ function stopElapsedTimer() {
  */
 function setUIState(state) {
   exportState = state;
+
+  // Kill any lingering cooldown countdown from a previous export.
+  if (state === 'idle' || state === 'complete') {
+    if (cooldownInterval) {
+      clearInterval(cooldownInterval);
+      cooldownInterval = null;
+    }
+    rateLimitNotice.style.display = 'none';
+  }
 
   btnStart.style.display = state === 'idle' ? '' : 'none';
   btnPause.style.display = state === 'exporting' ? '' : 'none';
@@ -306,13 +317,16 @@ async function runExportInner(resumeFromPrevious) {
       statRatelimit.textContent = `${(waitMs / 1000).toFixed(0)}s`;
     },
     onCooldown: (waitMs) => {
+      // Clear any prior cooldown interval before starting a new one.
+      if (cooldownInterval) clearInterval(cooldownInterval);
       rateLimitNotice.style.display = '';
       let remaining = Math.ceil(waitMs / 1000);
       cooldownTimer.textContent = formatTime(remaining);
-      const interval = setInterval(() => {
+      cooldownInterval = setInterval(() => {
         remaining--;
         if (remaining <= 0) {
-          clearInterval(interval);
+          clearInterval(cooldownInterval);
+          cooldownInterval = null;
           rateLimitNotice.style.display = 'none';
           statRatelimit.textContent = 'No';
         } else {
@@ -400,9 +414,6 @@ async function runExportInner(resumeFromPrevious) {
   progressBar.style.width = '100%';
   statPhase.textContent = 'Complete';
   log('Export complete! Assembling JSON...', 'success');
-
-  const count = await getBookmarkCount();
-  statBookmarks.textContent = String(count);
 
   await saveExportState('export_start_time', String(startTime));
   await saveExportState('export_complete', 'true');

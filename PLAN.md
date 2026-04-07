@@ -454,31 +454,9 @@ A full-page UI that opens in its own tab. This is where all export logic runs.
 - **Complete:** Total counts, download button, export summary
 - **Error:** Error details with retry option
 
-#### 4.2.4 DeclarativeNetRequest Rule (`rules.json`)
+#### 4.2.4 DeclarativeNetRequest Rule (dynamic, in `background.js`)
 
-Injects `Origin: https://x.com` header on the extension's own requests. Scoped narrowly (lesson from Twillot's overly broad rule):
-
-```json
-[{
-  "id": 1,
-  "priority": 1,
-  "action": {
-    "type": "modifyHeaders",
-    "requestHeaders": [{
-      "header": "Origin",
-      "operation": "set",
-      "value": "https://x.com"
-    }]
-  },
-  "condition": {
-    "urlFilter": "https://x.com/i/api/graphql/*",
-    "resourceTypes": ["xmlhttprequest"],
-    "initiatorDomains": ["$EXTENSION_ID"]
-  }
-}]
-```
-
-The `initiatorDomains` restriction (using the extension's own origin) prevents interfering with normal X.com browsing -- a fix for Twillot's issue #127.
+Injects `Origin: https://x.com` and `Referer: https://x.com/` headers on the extension's own requests. Registered as a **dynamic rule** at install time via `chrome.declarativeNetRequest.updateDynamicRules()` because static rules cannot reference the extension's own ID. The rule uses `initiatorDomains: [chrome.runtime.id]` to scope it to extension-originated requests only, preventing interference with normal X.com browsing -- a fix for Twillot's issue #127.
 
 ### 4.3 Export Flow
 

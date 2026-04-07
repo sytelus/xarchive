@@ -29,13 +29,6 @@
   ],
   "options_page": "options.html",
   "action": {},
-  "declarative_net_request": {
-    "rule_resources": [{
-      "id": "ruleset_1",
-      "enabled": true,
-      "path": "rules.json"
-    }]
-  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
