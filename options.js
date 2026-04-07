@@ -425,14 +425,12 @@ async function runExportInner() {
   }
 
   // -- Phase 2: Fetch folder contents ---------------------------------------
+  // Note: if BookmarkFolderTimeline is missing here, discoverQueryIds already
+  // tried both the background tab and bundle scraping.  Re-scraping would
+  // fetch the same bundles and get the same result, so we skip it.
   if (folders.length > 0) {
     if (!currentQueryIds.BookmarkFolderTimeline) {
-      log(`Found ${folders.length} folder(s) but missing BookmarkFolderTimeline query ID. Scraping bundles...`, 'warn');
-      const scraped = await scrapeQueryIdsFromBundles(log);
-      if (scraped?.BookmarkFolderTimeline) {
-        currentQueryIds = { ...currentQueryIds, ...scraped };
-        await storeQueryIds(currentUserId, scraped);
-      }
+      log(`Found ${folders.length} folder(s) but BookmarkFolderTimeline query ID could not be discovered. Folder assignments will be empty.`, 'warn');
     }
 
     if (currentQueryIds.BookmarkFolderTimeline) {
@@ -457,8 +455,6 @@ async function runExportInner() {
         await finishStopped();
         return;
       }
-    } else {
-      log('Could not discover BookmarkFolderTimeline query ID. Folder assignments will be empty.', 'warn');
     }
   }
 

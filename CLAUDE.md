@@ -7,7 +7,7 @@ xarchive is a Chrome browser extension (Manifest V3) that exports all bookmarks 
 ## Key Architecture Decisions
 
 - **Options page as runtime**: All heavy logic (API calls, pagination, storage, export) runs in the options page tab, NOT the service worker. The service worker only handles passive auth header capture via `webRequest.onSendHeaders`, opening the options page on icon click, and registering a dynamic `declarativeNetRequest` rule at install time.
-- **No MAIN world injection needed**: Auth capture uses `webRequest` (passive, clean). Content script is ISOLATED world only (reads `twid` cookie for user ID).
+- **No MAIN world injection needed**: Auth capture uses `webRequest` (passive, clean). Content script is ISOLATED world only (reads `twid` cookie for user ID, and the `@handle` from the sidebar DOM after page load).
 - **Direct GraphQL API calls**: The extension makes its own paginated `fetch()` calls to X.com's internal GraphQL API from the options page, using `credentials: 'include'` for cookie forwarding.
 - **`declarativeNetRequest` for origin spoofing**: A dynamic rule registered at install time (in `background.js`) injects `Origin: https://x.com` header, scoped to extension-originated requests via `initiatorDomains: [chrome.runtime.id]`. Static rules can't reference the extension ID, so the rule is created dynamically — no `rules.json` file is needed.
 - **IndexedDB via Dexie** for bookmark storage (scalable, persistent, survives tab close).
@@ -25,7 +25,7 @@ xarchive is a Chrome browser extension (Manifest V3) that exports all bookmarks 
 | File | Purpose |
 |---|---|
 | `background.js` | Service worker: passive header/query-ID capture, icon click handler, dynamic DNR rule |
-| `content.js` | Content script (ISOLATED world): reads `twid` cookie for user ID |
+| `content.js` | Content script (ISOLATED world): reads user ID from cookie, screen name from DOM |
 | `options.js` | Main entry point: export orchestration, UI state, event handlers |
 | `options.html` | Export UI markup |
 | `options.css` | Dark theme styling |
