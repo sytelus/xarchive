@@ -11,7 +11,7 @@ xarchive is a Chrome browser extension (Manifest V3) that exports all bookmarks 
 - **Direct GraphQL API calls**: The extension makes its own paginated `fetch()` calls to X.com's internal GraphQL API from the options page, using `credentials: 'include'` for cookie forwarding.
 - **`declarativeNetRequest` for origin spoofing**: A dynamic rule registered at install time (in `background.js`) injects `Origin: https://x.com` header, scoped to extension-originated requests via `initiatorDomains: [chrome.runtime.id]`. Static rules can't reference the extension ID, so the rule is created dynamically — no `rules.json` file is needed.
 - **IndexedDB via Dexie** for bookmark storage (scalable, persistent, survives tab close).
-- **Dynamic query ID capture**: GraphQL query IDs are captured from `webRequest` URL patterns, NOT hardcoded (they rotate every 2-4 weeks).
+- **Dynamic query ID capture**: GraphQL query IDs are captured from `webRequest` URL patterns, NOT hardcoded (they rotate every 2-4 weeks). If IDs haven't been captured yet, the extension opens `x.com/i/bookmarks` in a background tab to trigger the API calls, with JS bundle scraping as a further fallback.
 - **Conservative rate limiting**: 2.5s base delay between API calls with random jitter, exponential backoff on 429s, 5-minute cooldown after repeated failures.
 
 ## Key Files

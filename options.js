@@ -14,7 +14,7 @@
  */
 
 import { getCredentials, getFreshCt0 } from './lib/api.js';
-import { getStoredQueryIds, hasRequiredQueryIds, scrapeQueryIdsFromBundles, storeQueryIds } from './lib/query-ids.js';
+import { getStoredQueryIds, hasRequiredQueryIds, scrapeQueryIdsFromBundles, captureQueryIdsViaTab, storeQueryIds } from './lib/query-ids.js';
 import { fetchAllBookmarks } from './lib/fetcher.js';
 import { fetchAllFolders, fetchFolderContents } from './lib/folders.js';
 import { getBookmarkCount, getAllBookmarks, getAllFolders, getExportState, saveExportState, clearExportState, clearAllData } from './lib/db.js';
@@ -310,20 +310,31 @@ async function runExport(resumeFromPrevious = false) {
 async function runExportInner(resumeFromPrevious) {
   // -- Query ID discovery ---------------------------------------------------
   if (!hasRequiredQueryIds(currentQueryIds)) {
-    log('Query IDs not captured. Attempting to discover from X.com bundles...', 'info');
     statPhase.textContent = 'Discovering query IDs';
 
-    const scraped = await scrapeQueryIdsFromBundles();
-    if (scraped) {
-      currentQueryIds = { ...currentQueryIds, ...scraped };
-      await storeQueryIds(currentUserId, scraped);
-      log(`Discovered query IDs: ${Object.keys(scraped).join(', ')}`, 'success');
-      queryidDot.className = 'status-dot ok';
-      queryidText.textContent = `Query IDs: ${Object.keys(currentQueryIds).join(', ')}`;
+    // Strategy 1: open x.com/i/bookmarks in a background tab so the
+    // service worker captures live query IDs from real API calls.
+    const tabIds = await captureQueryIdsViaTab(currentUserId, log);
+    if (tabIds) {
+      currentQueryIds = { ...currentQueryIds, ...tabIds };
     }
 
+    // Strategy 2: scrape query IDs from X.com's JS bundles as fallback.
     if (!hasRequiredQueryIds(currentQueryIds)) {
-      log('Could not find Bookmarks query ID. Visit your x.com bookmarks page first, then retry.', 'error');
+      log('Background tab did not yield query IDs. Trying JS bundle scraping...', 'info');
+      const scraped = await scrapeQueryIdsFromBundles();
+      if (scraped) {
+        currentQueryIds = { ...currentQueryIds, ...scraped };
+        await storeQueryIds(currentUserId, scraped);
+        log(`Discovered query IDs: ${Object.keys(scraped).join(', ')}`, 'success');
+      }
+    }
+
+    if (hasRequiredQueryIds(currentQueryIds)) {
+      queryidDot.className = 'status-dot ok';
+      queryidText.textContent = `Query IDs: ${Object.keys(currentQueryIds).join(', ')}`;
+    } else {
+      log('Could not discover Bookmarks query ID. Make sure you are logged in to X.com, then retry.', 'error');
       setUIState('idle');
       return;
     }
@@ -406,8 +417,39 @@ async function runExportInner(resumeFromPrevious) {
         return;
       }
     } else {
-      log(`Found ${folders.length} folder(s) but missing BookmarkFolderTimeline query ID. ` +
-        'Folder assignments will be empty. To fix: open any bookmark folder in X.com, then re-export.', 'warn');
+      // Try to discover the missing query ID via background tab.
+      log(`Found ${folders.length} folder(s) but missing BookmarkFolderTimeline query ID. Attempting capture...`, 'warn');
+      const tabIds = await captureQueryIdsViaTab(currentUserId, log);
+      if (tabIds?.BookmarkFolderTimeline) {
+        currentQueryIds = { ...currentQueryIds, ...tabIds };
+        await storeQueryIds(currentUserId, tabIds);
+
+        statPhase.textContent = 'Fetching folder contents';
+        log('Phase 2: Fetching folder contents...', 'info');
+
+        await fetchFolderContents({
+          folders,
+          queryId: currentQueryIds.BookmarkFolderTimeline,
+          creds: currentCreds,
+          onLog: log,
+          onFolderProgress: (current, total, name) => {
+            statFolders.textContent = `${current}/${total}`;
+            statPhase.textContent = `Folder: ${name}`;
+          },
+          shouldStop: () => stopRequested,
+          shouldPause,
+          onRateLimit: callbacks.onRateLimit,
+          onCooldown: callbacks.onCooldown,
+        });
+
+        if (stopRequested) {
+          log('Export stopped.', 'warn');
+          setUIState('idle');
+          return;
+        }
+      } else {
+        log('Could not discover BookmarkFolderTimeline query ID. Folder assignments will be empty.', 'warn');
+      }
     }
   }
 
