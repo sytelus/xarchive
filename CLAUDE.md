@@ -37,6 +37,7 @@ xarchive is a Chrome browser extension (Manifest V3) that exports all bookmarks 
 | `lib/exporter.js` | JSON assembly and download trigger |
 | `lib/query-ids.js` | Query ID management with JS bundle scraping fallback |
 | `lib/utils.js` | Shared rate-limiting constants and timing helpers |
+| `version.js` | Auto-updated build version and date (pre-commit hook) |
 | `manifest.json` | Chrome MV3 extension manifest |
 
 ## Important Constraints
