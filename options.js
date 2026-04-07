@@ -74,7 +74,7 @@ const statPhase = $('stat-phase');
 const statBookmarks = $('stat-bookmarks');
 const statPages = $('stat-pages');
 const statFolders = $('stat-folders');
-const statRatelimit = $('stat-ratelimit');
+const statSpeed = $('stat-speed');
 const statElapsed = $('stat-elapsed');
 const progressBar = $('progress-bar');
 const rateLimitNotice = $('rate-limit-notice');
@@ -116,8 +116,15 @@ function log(message, level = 'info') {
 function startElapsedTimer() {
   startTime = Date.now();
   elapsedInterval = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    statElapsed.textContent = formatTime(elapsed);
+    const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+    statElapsed.textContent = formatTime(elapsedSec);
+
+    // Compute bookmarks/min from the displayed count.
+    if (elapsedSec > 0) {
+      const count = parseInt(statBookmarks.textContent, 10) || 0;
+      const perMin = Math.round(count / (elapsedSec / 60));
+      statSpeed.textContent = perMin > 0 ? `${perMin}/min` : '--';
+    }
   }, 1000);
 }
 
@@ -146,6 +153,13 @@ function setUIState(state) {
       cooldownInterval = null;
     }
     rateLimitNotice.style.display = 'none';
+  }
+
+  // Progress bar: indeterminate animation while working, solid on complete.
+  if (state === 'exporting' || state === 'paused') {
+    progressBar.classList.add('indeterminate');
+  } else {
+    progressBar.classList.remove('indeterminate');
   }
 
   btnStart.style.display = state === 'idle' ? '' : 'none';
@@ -326,9 +340,7 @@ async function runExportInner(resumeFromPrevious) {
 
   const callbacks = {
     onLog: log,
-    onRateLimit: (waitMs) => {
-      statRatelimit.textContent = `${(waitMs / 1000).toFixed(0)}s`;
-    },
+    onRateLimit: () => {},
     onCooldown: (waitMs) => {
       // Clear any prior cooldown interval before starting a new one.
       if (cooldownInterval) clearInterval(cooldownInterval);
@@ -341,7 +353,6 @@ async function runExportInner(resumeFromPrevious) {
           clearInterval(cooldownInterval);
           cooldownInterval = null;
           rateLimitNotice.style.display = 'none';
-          statRatelimit.textContent = 'No';
         } else {
           cooldownTimer.textContent = formatTime(remaining);
         }
@@ -406,8 +417,6 @@ async function runExportInner(resumeFromPrevious) {
       const count = await getBookmarkCount();
       statBookmarks.textContent = String(count);
       statPages.textContent = String(pageNum);
-      // Indeterminate progress — cap at 95 % since we don't know the total.
-      progressBar.style.width = `${Math.min(95, pageNum * 5)}%`;
     },
     ...callbacks,
     stateKey: 'main_bookmarks',
@@ -424,7 +433,6 @@ async function runExportInner(resumeFromPrevious) {
   }
 
   // -- Phase 4: Complete ----------------------------------------------------
-  progressBar.style.width = '100%';
   statPhase.textContent = 'Complete';
   log('Export complete! Assembling JSON...', 'success');
 

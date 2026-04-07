@@ -168,8 +168,18 @@ button:disabled {
   height: 100%;
   background: #1d9bf0;
   border-radius: 3px;
-  width: 0%;
-  transition: width 0.3s ease;
+  width: 100%;
+}
+
+/* Indeterminate: a sliding highlight that pulses back and forth. */
+.progress-bar.indeterminate {
+  width: 25%;
+  animation: indeterminate 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes indeterminate {
+  0%   { margin-left: 0; }
+  100% { margin-left: 75%; }
 }
 
 .progress-stats {

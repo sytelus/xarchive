@@ -28,18 +28,21 @@ xarchive is not on the Chrome Web Store. Install it as an unpacked extension:
    ```
 2. **Open Chrome's extension page** -- navigate to `chrome://extensions/`
 3. **Enable Developer mode** -- toggle the switch in the top-right corner
-4. **Load the extension** -- click "Load unpacked" and select the `xarchive` folder (the one containing `manifest.json`)
+4. **Load the extension** -- click "Load unpacked" and select the cloned repository folder
 5. **Pin it (optional)** -- click the puzzle-piece icon in Chrome's toolbar and pin xarchive for easy access
 
 The extension icon should now appear in your toolbar.
 
 ## Usage
 
-1. **Browse X.com while logged in** -- the extension passively captures authentication credentials from your session in the background. Visit your Bookmarks page at least once so the extension can capture the required API query IDs.
-2. **Open the export page** -- click the xarchive extension icon. A new tab opens showing the status dashboard.
-3. **Check status indicators** -- all three dots (credentials, query IDs, user session) should be green. If any are yellow or red, follow the on-screen hints.
-4. **Start the export** -- click "Start Export". The extension fetches your bookmarks via paginated API calls with built-in rate limiting. Progress is shown in real time.
-5. **Download the JSON** -- when the export completes, click "Download JSON" to save the file.
+1. **Log in to X.com** -- browse normally so the extension can passively capture your authentication credentials in the background.
+2. **Visit your Bookmarks page** (`x.com/i/bookmarks`) -- this is required so the extension can capture the API query IDs it needs. You only need to do this once after installing or after X.com rotates its query IDs (every few weeks).
+3. **Open the export page** -- click the xarchive extension icon. A new tab opens showing the status dashboard.
+4. **Check status indicators** -- all three dots (credentials, query IDs, user session) should be green. If any are yellow or red, follow the on-screen hints.
+5. **Start the export** -- click "Start Export". The extension fetches your bookmarks via paginated API calls with built-in rate limiting. Bookmark count, page count, and elapsed time are shown in real time.
+6. **Download the JSON** -- when the export completes, click "Download JSON" to save the file.
+
+**How long will it take?** X.com's API does not report your total bookmark count, so the extension cannot show a percentage or ETA. Each page fetches ~20 bookmarks with a ~3 second delay between pages. Rough estimate: 1,000 bookmarks takes ~3 minutes, 10,000 takes ~30 minutes.
 
 ### Tips
 
