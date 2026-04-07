@@ -218,7 +218,7 @@ async function checkCredentials() {
     queryidText.textContent = `Query IDs: ${ops}`;
   } else {
     queryidDot.className = 'status-dot waiting';
-    queryidText.textContent = 'Query IDs not captured yet (visit x.com bookmarks page)';
+    queryidText.textContent = 'Query IDs not yet captured (auto-discovered on export start)';
   }
 
   // Actionable hints
@@ -227,7 +227,7 @@ async function checkCredentials() {
     hints.push('Browse x.com while logged in to capture credentials.');
   }
   if (!hasRequiredQueryIds(currentQueryIds)) {
-    hints.push('Visit your x.com Bookmarks page to capture query IDs. Or click Start Export to auto-discover them.');
+    hints.push('Query IDs will be auto-discovered when you click Start Export.');
   }
 
   if (hints.length > 0) {
@@ -304,6 +304,48 @@ async function runExport(resumeFromPrevious = false) {
 }
 
 /**
+ * Try to discover any missing query IDs.
+ *
+ * 1. Background tab → captures Bookmarks + BookmarkFoldersSlice from
+ *    real API calls when the bookmarks page loads.
+ * 2. Bundle scraping → finds ALL operation IDs (including
+ *    BookmarkFolderTimeline) from compiled JS source code.
+ *
+ * Both strategies are tried so that we get the most complete set.
+ */
+async function discoverQueryIds() {
+  // Strategy 1: background tab (captures live IDs quickly).
+  const tabIds = await captureQueryIdsViaTab(currentUserId, log);
+  if (tabIds) {
+    currentQueryIds = { ...currentQueryIds, ...tabIds };
+  }
+
+  // Strategy 2: bundle scraping for any still-missing operations.
+  // The background tab can't capture BookmarkFolderTimeline (it only
+  // fires when a user opens a specific folder), but the scraper can
+  // find it in the compiled JS.
+  const allFound = FOLDER_OPERATIONS.every((op) => currentQueryIds[op]);
+  if (!hasRequiredQueryIds(currentQueryIds) || !allFound) {
+    log('Scraping JS bundles for remaining query IDs...', 'info');
+    const scraped = await scrapeQueryIdsFromBundles();
+    if (scraped) {
+      currentQueryIds = { ...currentQueryIds, ...scraped };
+      await storeQueryIds(currentUserId, scraped);
+    }
+  }
+
+  if (hasRequiredQueryIds(currentQueryIds)) {
+    const ops = Object.keys(currentQueryIds).join(', ');
+    log(`Query IDs ready: ${ops}`, 'success');
+    queryidDot.className = 'status-dot ok';
+    queryidText.textContent = `Query IDs: ${ops}`;
+  }
+}
+
+/** Folder-related operations whose IDs are desirable but not required. */
+const FOLDER_OPERATIONS = ['BookmarkFoldersSlice', 'BookmarkFolderTimeline'];
+
+/**
  * Inner export logic — separated so the outer function can wrap it in
  * a single try/catch/finally.
  */
@@ -311,29 +353,9 @@ async function runExportInner(resumeFromPrevious) {
   // -- Query ID discovery ---------------------------------------------------
   if (!hasRequiredQueryIds(currentQueryIds)) {
     statPhase.textContent = 'Discovering query IDs';
+    await discoverQueryIds();
 
-    // Strategy 1: open x.com/i/bookmarks in a background tab so the
-    // service worker captures live query IDs from real API calls.
-    const tabIds = await captureQueryIdsViaTab(currentUserId, log);
-    if (tabIds) {
-      currentQueryIds = { ...currentQueryIds, ...tabIds };
-    }
-
-    // Strategy 2: scrape query IDs from X.com's JS bundles as fallback.
     if (!hasRequiredQueryIds(currentQueryIds)) {
-      log('Background tab did not yield query IDs. Trying JS bundle scraping...', 'info');
-      const scraped = await scrapeQueryIdsFromBundles();
-      if (scraped) {
-        currentQueryIds = { ...currentQueryIds, ...scraped };
-        await storeQueryIds(currentUserId, scraped);
-        log(`Discovered query IDs: ${Object.keys(scraped).join(', ')}`, 'success');
-      }
-    }
-
-    if (hasRequiredQueryIds(currentQueryIds)) {
-      queryidDot.className = 'status-dot ok';
-      queryidText.textContent = `Query IDs: ${Object.keys(currentQueryIds).join(', ')}`;
-    } else {
       log('Could not discover Bookmarks query ID. Make sure you are logged in to X.com, then retry.', 'error');
       setUIState('idle');
       return;
@@ -351,7 +373,6 @@ async function runExportInner(resumeFromPrevious) {
 
   const callbacks = {
     onLog: log,
-    onRateLimit: () => {},
     onCooldown: (waitMs) => {
       // Clear any prior cooldown interval before starting a new one.
       if (cooldownInterval) clearInterval(cooldownInterval);
@@ -392,6 +413,18 @@ async function runExportInner(resumeFromPrevious) {
 
   // -- Phase 2: Fetch folder contents ---------------------------------------
   if (folders.length > 0) {
+    if (!currentQueryIds.BookmarkFolderTimeline) {
+      // Last-resort: try bundle scraping specifically for this ID.
+      // The background tab (run in discovery) can't capture it because
+      // BookmarkFolderTimeline only fires when a user opens a folder.
+      log(`Found ${folders.length} folder(s) but missing BookmarkFolderTimeline query ID. Scraping bundles...`, 'warn');
+      const scraped = await scrapeQueryIdsFromBundles();
+      if (scraped?.BookmarkFolderTimeline) {
+        currentQueryIds = { ...currentQueryIds, ...scraped };
+        await storeQueryIds(currentUserId, scraped);
+      }
+    }
+
     if (currentQueryIds.BookmarkFolderTimeline) {
       statPhase.textContent = 'Fetching folder contents';
       log('Phase 2: Fetching folder contents...', 'info');
@@ -407,7 +440,6 @@ async function runExportInner(resumeFromPrevious) {
         },
         shouldStop: () => stopRequested,
         shouldPause,
-        onRateLimit: callbacks.onRateLimit,
         onCooldown: callbacks.onCooldown,
       });
 
@@ -417,39 +449,7 @@ async function runExportInner(resumeFromPrevious) {
         return;
       }
     } else {
-      // Try to discover the missing query ID via background tab.
-      log(`Found ${folders.length} folder(s) but missing BookmarkFolderTimeline query ID. Attempting capture...`, 'warn');
-      const tabIds = await captureQueryIdsViaTab(currentUserId, log);
-      if (tabIds?.BookmarkFolderTimeline) {
-        currentQueryIds = { ...currentQueryIds, ...tabIds };
-        await storeQueryIds(currentUserId, tabIds);
-
-        statPhase.textContent = 'Fetching folder contents';
-        log('Phase 2: Fetching folder contents...', 'info');
-
-        await fetchFolderContents({
-          folders,
-          queryId: currentQueryIds.BookmarkFolderTimeline,
-          creds: currentCreds,
-          onLog: log,
-          onFolderProgress: (current, total, name) => {
-            statFolders.textContent = `${current}/${total}`;
-            statPhase.textContent = `Folder: ${name}`;
-          },
-          shouldStop: () => stopRequested,
-          shouldPause,
-          onRateLimit: callbacks.onRateLimit,
-          onCooldown: callbacks.onCooldown,
-        });
-
-        if (stopRequested) {
-          log('Export stopped.', 'warn');
-          setUIState('idle');
-          return;
-        }
-      } else {
-        log('Could not discover BookmarkFolderTimeline query ID. Folder assignments will be empty.', 'warn');
-      }
+      log('Could not discover BookmarkFolderTimeline query ID. Folder assignments will be empty.', 'warn');
     }
   }
 
