@@ -74,6 +74,28 @@ The version number and build date are shown in the footer of the export page.
 - **Re-downloading**: After a completed or stopped export, you can close and reopen the extension tab -- the download button remains available until you start a new export.
 - **VS Code warnings**: When opening the exported JSON in VS Code, you may see warnings about "ambiguous unicode characters." This is normal -- tweets contain multilingual text (Cyrillic, Arabic, CJK, emoji, etc.) that VS Code flags as lookalike characters. The data is correct; you can safely ignore or dismiss the warning.
 
+## Viewer
+
+`viewer.html` is a standalone bookmark browser that lets you explore exported JSON files in a dark-themed UI resembling X.com.
+
+**Opening the viewer:**
+
+- **Local file** -- open `viewer.html` in any browser, then drag-and-drop your exported JSON file onto the page (or click to pick a file).
+- **From a URL** -- append `?url=<json-url>` to load a hosted JSON file directly, e.g.:
+  ```
+  viewer.html?url=https://example.com/bookmarks.json
+  ```
+
+**Viewer features:**
+
+- Folder sidebar with counts and filter
+- Full-text search across tweet text, author names, handles, and URLs (inverted index for fast lookup)
+- Sort by newest or oldest
+- Virtual scrolling for smooth performance with large collections
+- Tweet cards with author info, engagement metrics, media thumbnails, quoted tweets, and folder tags
+- Keyboard shortcut: press `/` to focus the search box
+- IndexedDB caching -- reloading the page reuses previously loaded data without re-parsing
+
 ## Links
 
 - **Repository**: [github.com/sytelus/xarchive](https://github.com/sytelus/xarchive)

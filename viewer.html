@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X Bookmarks Browser</title>
+<style>
+:root {
+  --bg: #000;
+  --surface: #16181c;
+  --surface-hover: #1d1f23;
+  --border: #2f3336;
+  --text: #e7e9ea;
+  --text-secondary: #71767b;
+  --accent: #1d9bf0;
+  --accent-hover: #1a8cd8;
+  --green: #00ba7c;
+  --pink: #f91880;
+  --orange: #ff7a00;
+  --sidebar-w: 280px;
+  --header-h: 53px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Layout */
+.app { display: flex; height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-w);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sidebar-header svg { width: 24px; height: 24px; fill: var(--text); }
+
+.folder-filter {
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.folder-filter input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 12px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.folder-filter input:focus { border-color: var(--accent); }
+
+.folder-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.folder-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.folder-item:hover { background: var(--surface-hover); }
+.folder-item.active { background: var(--surface); color: var(--accent); font-weight: 600; }
+
+.folder-count {
+  font-size: 12px;
+  background: var(--surface);
+  padding: 1px 8px;
+  border-radius: 12px;
+  color: var(--text-secondary);
+  min-width: 28px;
+  text-align: center;
+}
+
+.folder-item.active .folder-count { background: rgba(29,155,240,0.15); color: var(--accent); }
+
+/* Main content */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+}
+
+/* Header / Search */
+.header {
+  height: var(--header-h);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  flex-shrink: 0;
+  backdrop-filter: blur(12px);
+  background: rgba(0,0,0,0.65);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.search-box {
+  flex: 1;
+  max-width: 500px;
+  position: relative;
+}
+
+.search-box svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  fill: var(--text-secondary);
+  pointer-events: none;
+}
+
+.search-box input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 8px 12px 8px 38px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.search-box input:focus { border-color: var(--accent); }
+.search-box input:focus + svg { fill: var(--accent); }
+
+.result-count {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.sort-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.sort-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Tweet feed */
+.feed {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
+
+.feed-inner {
+  position: relative;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* Tweet card */
+.tweet {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  transition: background 0.1s;
+  cursor: default;
+  position: absolute;
+  width: 100%;
+  left: 0;
+}
+
+.tweet:hover { background: var(--surface-hover); }
+
+.tweet-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  overflow: hidden;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tweet-author {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.author-name {
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.author-handle {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.tweet-date {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.tweet-date a { color: var(--text-secondary); text-decoration: none; }
+.tweet-date a:hover { text-decoration: underline; }
+
+/* Tweet text */
+.tweet-text {
+  font-size: 15px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  margin: 4px 0 0 48px;
+  white-space: pre-wrap;
+}
+
+.tweet-text a { color: var(--accent); text-decoration: none; }
+.tweet-text a:hover { text-decoration: underline; }
+.tweet-text .hashtag { color: var(--accent); }
+.tweet-text .mention { color: var(--accent); }
+
+/* Reply indicator */
+.reply-indicator {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 4px 48px;
+}
+
+.reply-indicator a { color: var(--accent); text-decoration: none; }
+
+/* Media */
+.tweet-media {
+  margin: 10px 0 0 48px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.tweet-media.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.tweet-media.grid-3 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; }
+.tweet-media.grid-3 > :first-child { grid-row: 1 / -1; }
+.tweet-media.grid-4 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; }
+
+.media-item {
+  position: relative;
+  background: var(--surface);
+  min-height: 120px;
+  max-height: 400px;
+  overflow: hidden;
+}
+
+.media-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.media-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.media-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  gap: 6px;
+  padding: 16px;
+  text-align: center;
+}
+
+.media-placeholder svg { width: 20px; height: 20px; fill: var(--text-secondary); }
+
+.gif-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Card */
+.tweet-card {
+  margin: 10px 0 0 48px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tweet-card:hover { background: var(--surface); }
+
+.card-body {
+  padding: 12px;
+}
+
+.card-domain {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Poll card */
+.tweet-poll {
+  margin: 10px 0 0 48px;
+  padding: 8px 0;
+}
+
+.poll-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Quoted tweet */
+.quoted-tweet {
+  margin: 10px 0 0 48px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.quoted-tweet:hover { background: var(--surface); }
+
+.qt-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.qt-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.qt-name { font-size: 13px; font-weight: 700; }
+.qt-handle { font-size: 13px; color: var(--text-secondary); }
+
+.qt-text {
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.qt-unavailable {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Metrics */
+.tweet-metrics {
+  display: flex;
+  gap: 24px;
+  margin: 8px 0 0 48px;
+  padding-top: 4px;
+}
+
+.metric {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+.metric svg { width: 16px; height: 16px; fill: var(--text-secondary); }
+.metric.replies:hover svg { fill: var(--accent); }
+.metric.retweets:hover svg { fill: var(--green); }
+.metric.likes:hover svg { fill: var(--pink); }
+.metric.bookmarks:hover svg { fill: var(--accent); }
+.metric.views:hover svg { fill: var(--text-secondary); }
+
+/* Folder tags */
+.tweet-folders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0 0 48px;
+}
+
+.folder-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(29,155,240,0.12);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.folder-tag:hover { background: rgba(29,155,240,0.25); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+/* Loading */
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 12px;
+  padding: 20px;
+}
+
+.loading-screen h2 { font-size: 24px; font-weight: 700; }
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-status { color: var(--text-secondary); font-size: 14px; text-align: center; }
+
+.progress-bar-outer {
+  width: 300px;
+  max-width: 80vw;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-inner {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.2s;
+}
+
+.error-box {
+  background: #2d1215;
+  border: 1px solid #f4212e;
+  border-radius: 12px;
+  padding: 16px 20px;
+  max-width: 600px;
+  width: 100%;
+  text-align: left;
+}
+
+.error-box h3 { color: #f4212e; font-size: 16px; margin-bottom: 8px; }
+.error-box p { font-size: 13px; color: var(--text-secondary); margin: 4px 0; line-height: 1.5; }
+.error-box code { font-size: 12px; color: var(--text); background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; word-break: break-all; }
+.error-box .error-detail { color: #f4212e; font-family: monospace; font-size: 12px; margin: 8px 0; word-break: break-all; }
+.error-box ul { font-size: 13px; color: var(--text-secondary); margin: 8px 0 0 18px; line-height: 1.7; }
+
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 16px;
+  padding: 32px 24px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(29,155,240,0.05);
+}
+
+.drop-zone p { font-size: 14px; color: var(--text-secondary); margin: 6px 0; }
+.drop-zone .drop-icon { font-size: 32px; margin-bottom: 4px; }
+.drop-zone input[type=file] { display: none; }
+.drop-zone .browse-link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: var(--text-secondary);
+  text-align: center;
+  gap: 8px;
+}
+
+.empty-state svg { width: 48px; height: 48px; fill: var(--text-secondary); opacity: 0.5; }
+.empty-state h3 { font-size: 18px; color: var(--text); }
+
+/* Search highlight */
+mark {
+  background: rgba(29,155,240,0.3);
+  color: var(--text);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* Keyboard hint */
+.kbd-hint {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  z-index: 100;
+  opacity: 0.8;
+}
+
+kbd {
+  background: var(--border);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .sidebar.open { display: flex; position: fixed; z-index: 50; background: var(--bg); height: 100vh; }
+  .tweet-text, .tweet-media, .tweet-card, .quoted-tweet, .tweet-metrics, .tweet-folders, .reply-indicator, .tweet-poll { margin-left: 0; }
+}
+
+/* Back to top */
+.back-to-top {
+  position: fixed;
+  bottom: 60px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  transition: transform 0.15s;
+}
+
+.back-to-top:hover { transform: scale(1.1); }
+.back-to-top svg { width: 20px; height: 20px; fill: #fff; }
+.back-to-top.visible { display: flex; }
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading-screen">
+  <svg viewBox="0 0 24 24" width="48" height="48" fill="#1d9bf0"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+  <h2>X Bookmarks Browser</h2>
+  <div id="load-spinner" class="spinner"></div>
+  <div class="progress-bar-outer" id="progress-bar" style="display:none">
+    <div class="progress-bar-inner" id="progress-fill"></div>
+  </div>
+  <div id="load-status" class="loading-status">Initializing...</div>
+  <div id="load-error"></div>
+  <div id="drop-zone-container"></div>
+</div>
+
+<div id="app" class="app" style="display:none">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <svg viewBox="0 0 24 24"><path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h12v2H3v-2z"/></svg>
+      Folders
+    </div>
+    <div class="folder-filter">
+      <input type="text" id="folder-search" placeholder="Filter folders..." autocomplete="off">
+    </div>
+    <div class="folder-list" id="folder-list"></div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="header">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24"><path d="M10.25 3.75c-3.59 0-6.5 2.91-6.5 6.5s2.91 6.5 6.5 6.5c1.795 0 3.419-.726 4.596-1.904 1.178-1.177 1.904-2.801 1.904-4.596 0-3.59-2.91-6.5-6.5-6.5zm-8.5 6.5c0-4.694 3.806-8.5 8.5-8.5s8.5 3.806 8.5 8.5c0 1.986-.682 3.815-1.824 5.262l4.781 4.781-1.414 1.414-4.781-4.781c-1.447 1.142-3.276 1.824-5.262 1.824-4.694 0-8.5-3.806-8.5-8.5z"/></svg>
+        <input type="text" id="search" placeholder="Search bookmarks..." autocomplete="off" spellcheck="false">
+      </div>
+      <span class="result-count" id="result-count"></span>
+      <button class="sort-btn" id="sort-btn" title="Toggle sort">Newest</button>
+      <button class="sort-btn" id="reload-btn" title="Load a different file (clears cache)">Reload</button>
+    </div>
+    <div class="feed" id="feed">
+      <div class="feed-inner" id="feed-inner"></div>
+    </div>
+  </main>
+</div>
+
+<button class="back-to-top" id="back-to-top" title="Back to top">
+  <svg viewBox="0 0 24 24"><path d="M12 4l-8 8h5v8h6v-8h5z"/></svg>
+</button>
+
+<div class="kbd-hint" id="kbd-hint">
+  <kbd>/</kbd> Search &nbsp; <kbd>Esc</kbd> Clear &nbsp; <kbd>G</kbd> Top
+</div>
+
+<script>
+// ---- App State ----
+let allBookmarks = [];
+let allFolders = [];
+let folderMap = {};        // folder name -> [bookmark indices]
+let filteredIndices = [];  // indices into allBookmarks
+let activeFolder = null;
+let searchQuery = '';
+let sortNewest = true;
+
+// ---- Virtual Scroll State ----
+const ITEM_HEIGHT_EST = 200; // estimated, will be measured
+let measuredHeights = {};
+let positionCache = [];
+let totalHeight = 0;
+let visibleRange = { start: 0, end: 0 };
+const OVERSCAN = 5;
+
+// ---- Search Index ----
+let searchIndex = {};  // token -> Set of bookmark indices
+
+// ---- DOM refs ----
+let feedEl, feedInnerEl, searchEl, resultCountEl, folderListEl, folderSearchEl, sortBtn, backToTopBtn;
+
+// ---- Loading UI helpers ----
+const DB_NAME = 'xbm';
+const DB_STORE = 'data';
+const DB_KEY = 'bookmarks';
+
+function setStatus(msg) {
+  document.getElementById('load-status').textContent = msg;
+}
+
+function setProgress(pct) {
+  const bar = document.getElementById('progress-bar');
+  const fill = document.getElementById('progress-fill');
+  bar.style.display = 'block';
+  fill.style.width = Math.min(100, Math.round(pct)) + '%';
+}
+
+function hideSpinner() {
+  document.getElementById('load-spinner').style.display = 'none';
+}
+
+function showError(title, detail, hints) {
+  hideSpinner();
+  document.getElementById('progress-bar').style.display = 'none';
+  const box = document.getElementById('load-error');
+  let html = `<div class="error-box"><h3>${escHtml(title)}</h3>`;
+  if (detail) html += `<div class="error-detail">${escHtml(detail)}</div>`;
+  if (hints && hints.length) {
+    html += `<ul>`;
+    for (const h of hints) html += `<li>${h}</li>`;
+    html += `</ul>`;
+  }
+  html += `</div>`;
+  box.innerHTML = html;
+}
+
+function showFilePicker(message) {
+  hideSpinner();
+  document.getElementById('progress-bar').style.display = 'none';
+  setStatus(message || '');
+  const container = document.getElementById('drop-zone-container');
+  container.innerHTML = `
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-icon">&#128194;</div>
+      <p><strong>Drop your xarchive JSON file here</strong></p>
+      <p>or <span class="browse-link" id="browse-link">click to select it</span></p>
+      <p style="font-size:12px;color:var(--text-secondary);margin-top:8px">The file stays in your browser — nothing is uploaded.</p>
+      <input type="file" id="file-input" accept=".json">
+    </div>`;
+
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+
+  document.getElementById('browse-link').addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) loadFromFile(file);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) loadFromFile(fileInput.files[0]);
+  });
+}
+
+async function loadFromFile(file) {
+  document.getElementById('load-error').innerHTML = '';
+  document.getElementById('drop-zone-container').innerHTML = '';
+  document.getElementById('load-spinner').style.display = 'block';
+
+  const sizeMB = (file.size / 1048576).toFixed(1);
+  setStatus(`Reading ${file.name} (${sizeMB} MB)...`);
+  setProgress(5);
+
+  try {
+    const text = await file.text();
+    setStatus(`Parsing JSON (${sizeMB} MB)...`);
+    setProgress(30);
+    await sleep(10);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (parseErr) {
+      showError(
+        'JSON parse error',
+        parseErr.message,
+        [
+          `File: <code>${escHtml(file.name)}</code> (${sizeMB} MB)`,
+          `Make sure this is a valid xarchive JSON export.`
+        ]
+      );
+      showFilePicker('Try another file:');
+      return;
+    }
+
+    // Cache in IndexedDB so next reload is instant
+    setStatus('Caching for next time...');
+    setProgress(40);
+    await cacheData(data);
+
+    await processData(data);
+  } catch (err) {
+    showError(
+      'Failed to read file',
+      `${err.name}: ${err.message}`,
+      [`File: <code>${escHtml(file.name)}</code>`, `Type: ${file.type || 'unknown'}`, `Size: ${sizeMB} MB`]
+    );
+    showFilePicker('Try another file:');
+  }
+}
+
+// ---- IndexedDB cache ----
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function getCachedData() {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).get(DB_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch { return null; }
+}
+
+async function cacheData(data) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put(data, DB_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* caching is best-effort */ }
+}
+
+async function clearCache() {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).delete(DB_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {}
+}
+
+// ---- Init ----
+async function init() {
+  const protocol = window.location.protocol;
+  const pageUrl = window.location.href;
+
+  // 1) Try IndexedDB cache first (works on any protocol, instant reload)
+  setStatus('Checking cache...');
+  const cached = await getCachedData();
+  if (cached && cached.bookmarks) {
+    const n = cached.bookmarks.length.toLocaleString();
+    setStatus(`Loading ${n} cached bookmarks...`);
+    setProgress(50);
+    await sleep(10);
+    await processData(cached);
+    return;
+  }
+
+  // 2) Try fetch (works when served over http)
+  if (protocol === 'http:' || protocol === 'https:') {
+    setStatus('Fetching bookmark data...');
+    setProgress(2);
+    let resp, fetchErr;
+    try {
+      resp = await fetch('xarchive_sytelus_2026-04-07.json');
+    } catch (e) { fetchErr = e; }
+
+    if (resp && resp.ok) {
+      // Stream with progress
+      const contentLength = resp.headers.get('content-length');
+      const totalBytes = contentLength ? parseInt(contentLength) : null;
+      let receivedBytes = 0;
+      let chunks = [];
+      const reader = resp.body.getReader();
+      const startTime = performance.now();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        receivedBytes += value.length;
+        const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(1);
+        const recvMB = (receivedBytes / 1048576).toFixed(1);
+        if (totalBytes) {
+          setProgress((receivedBytes / totalBytes) * 55);
+          setStatus(`Downloading: ${recvMB} / ${(totalBytes / 1048576).toFixed(1)} MB (${elapsedSec}s)`);
+        } else {
+          setStatus(`Downloading: ${recvMB} MB received (${elapsedSec}s)`);
+        }
+      }
+
+      setStatus(`Parsing JSON (${(receivedBytes / 1048576).toFixed(1)} MB)...`);
+      setProgress(60);
+      await sleep(10);
+
+      const decoder = new TextDecoder();
+      let jsonText = '';
+      for (const chunk of chunks) jsonText += decoder.decode(chunk, { stream: true });
+      jsonText += decoder.decode();
+      chunks = null;
+
+      let data;
+      try {
+        data = JSON.parse(jsonText);
+      } catch (parseErr) {
+        showError('JSON parse error', parseErr.message, [
+          `Downloaded ${(receivedBytes / 1048576).toFixed(1)} MB but content is not valid JSON.`,
+          `First 200 chars: <code>${escHtml(jsonText.slice(0, 200))}</code>`
+        ]);
+        showFilePicker('Or load a file manually:');
+        return;
+      }
+      jsonText = null;
+
+      setStatus('Caching for next time...');
+      await cacheData(data);
+      await processData(data);
+      return;
+    }
+
+    // fetch failed — fall through to file picker with diagnostic
+    if (fetchErr) {
+      showError('Could not load bookmark data', fetchErr.message, [
+        `URL: <code>${escHtml(new URL('xarchive_sytelus_2026-04-07.json', pageUrl).href)}</code>`,
+        `Make sure the JSON file is in the same directory as index.html, or select it below.`
+      ]);
+    } else if (resp) {
+      showError('Could not load bookmark data', `HTTP ${resp.status} ${resp.statusText}`, [
+        `Make sure the JSON file is in the same directory as index.html, or select it below.`
+      ]);
+    }
+    showFilePicker();
+    return;
+  }
+
+  // 3) file:// with no cache — show friendly file picker (not an error)
+  showFilePicker('Select your xarchive JSON file to get started:');
+}
+
+async function processData(data) {
+  if (!data.bookmarks || !Array.isArray(data.bookmarks)) {
+    showError(
+      'Invalid data format',
+      'Expected a JSON object with a "bookmarks" array.',
+      [
+        `Top-level keys found: <code>${escHtml(Object.keys(data).join(', '))}</code>`,
+        `Make sure this is an xarchive export file.`
+      ]
+    );
+    showFilePicker('Try a different file:');
+    return;
+  }
+
+  allFolders = data.folders || [];
+  allBookmarks = data.bookmarks || [];
+  const totalCount = allBookmarks.length;
+
+  setStatus(`Processing ${totalCount.toLocaleString()} bookmarks...`);
+  setProgress(70);
+  await sleep(10);
+
+  // Build folder map
+  const BATCH_SIZE = 2000;
+  for (let i = 0; i < allBookmarks.length; i++) {
+    const b = allBookmarks[i];
+    b._date = new Date(b.created_at);
+    b._timestamp = b._date.getTime();
+    b._searchText = buildSearchText(b).toLowerCase();
+    if (b.folders) {
+      for (const fname of b.folders) {
+        if (!folderMap[fname]) folderMap[fname] = [];
+        folderMap[fname].push(i);
+      }
+    }
+    // Yield to UI every BATCH_SIZE items
+    if (i % BATCH_SIZE === 0 && i > 0) {
+      setProgress(70 + (i / totalCount) * 15);
+      setStatus(`Processing bookmarks: ${i.toLocaleString()} / ${totalCount.toLocaleString()}`);
+      await sleep(0);
+    }
+  }
+
+  allFolders.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+  setStatus(`Building search index for ${totalCount.toLocaleString()} bookmarks...`);
+  setProgress(88);
+  await sleep(10);
+  buildSearchIndex();
+
+  setProgress(100);
+  setStatus(`Loaded ${totalCount.toLocaleString()} bookmarks in ${allFolders.length} folders.`);
+  await sleep(200);
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  feedEl = document.getElementById('feed');
+  feedInnerEl = document.getElementById('feed-inner');
+  searchEl = document.getElementById('search');
+  resultCountEl = document.getElementById('result-count');
+  folderListEl = document.getElementById('folder-list');
+  folderSearchEl = document.getElementById('folder-search');
+  sortBtn = document.getElementById('sort-btn');
+  backToTopBtn = document.getElementById('back-to-top');
+
+  renderFolders();
+  applyFilters();
+
+  searchEl.addEventListener('input', debounce(onSearch, 150));
+  folderSearchEl.addEventListener('input', onFolderFilter);
+  sortBtn.addEventListener('click', toggleSort);
+  feedEl.addEventListener('scroll', onScroll);
+  backToTopBtn.addEventListener('click', () => { feedEl.scrollTop = 0; });
+  document.getElementById('reload-btn').addEventListener('click', async () => {
+    if (!confirm('Clear cached data and load a new file?')) return;
+    await clearCache();
+    window.location.reload();
+  });
+  document.addEventListener('keydown', onKeyDown);
+
+  setTimeout(() => {
+    const hint = document.getElementById('kbd-hint');
+    hint.style.opacity = '0';
+    setTimeout(() => hint.style.display = 'none', 500);
+  }, 8000);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ---- Search Index ----
+function tokenize(text) {
+  return text.toLowerCase().replace(/[^\w\s@#]/g, ' ').split(/\s+/).filter(t => t.length > 1);
+}
+
+function buildSearchText(b) {
+  const parts = [b.full_text || ''];
+  if (b.author?.screen_name) parts.push(b.author.screen_name);
+  if (b.author?.name) parts.push(b.author.name);
+  if (b.entities?.hashtags) parts.push(b.entities.hashtags.join(' '));
+  if (b.entities?.mentions) parts.push(b.entities.mentions.map(m => m.screen_name).join(' '));
+  if (b.card?.title) parts.push(b.card.title);
+  if (b.card?.description) parts.push(b.card.description);
+  if (b.quoted_tweet?.full_text) parts.push(b.quoted_tweet.full_text);
+  if (b.folders) parts.push(b.folders.join(' '));
+  return parts.join(' ');
+}
+
+function buildSearchIndex() {
+  for (let i = 0; i < allBookmarks.length; i++) {
+    const tokens = tokenize(allBookmarks[i]._searchText);
+    const seen = new Set();
+    for (const t of tokens) {
+      if (seen.has(t)) continue;
+      seen.add(t);
+      if (!searchIndex[t]) searchIndex[t] = [];
+      searchIndex[t].push(i);
+    }
+  }
+}
+
+// Sorted keys for fast prefix search via binary search
+let sortedIndexKeys = [];
+
+function searchBookmarks(query) {
+  const tokens = tokenize(query);
+  if (tokens.length === 0) return null;
+
+  // Build sorted keys lazily
+  if (sortedIndexKeys.length === 0) {
+    sortedIndexKeys = Object.keys(searchIndex).sort();
+  }
+
+  let result = null;
+  for (const token of tokens) {
+    const matches = new Set();
+
+    // Binary search for prefix start
+    let lo = 0, hi = sortedIndexKeys.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (sortedIndexKeys[mid] < token) lo = mid + 1;
+      else hi = mid;
+    }
+    // Collect all keys that start with this token
+    for (let i = lo; i < sortedIndexKeys.length; i++) {
+      const key = sortedIndexKeys[i];
+      if (!key.startsWith(token)) break;
+      for (const idx of searchIndex[key]) matches.add(idx);
+    }
+
+    if (result === null) {
+      result = matches;
+    } else {
+      const intersection = new Set();
+      for (const idx of matches) {
+        if (result.has(idx)) intersection.add(idx);
+      }
+      result = intersection;
+    }
+  }
+  return result || new Set();
+}
+
+// ---- Filtering & Sorting ----
+function applyFilters() {
+  let indices;
+
+  // Start with folder filter
+  if (activeFolder) {
+    indices = folderMap[activeFolder] ? [...folderMap[activeFolder]] : [];
+  } else {
+    indices = Array.from({ length: allBookmarks.length }, (_, i) => i);
+  }
+
+  // Apply search
+  if (searchQuery) {
+    const searchResults = searchBookmarks(searchQuery);
+    if (searchResults !== null) {
+      indices = indices.filter(i => searchResults.has(i));
+    }
+  }
+
+  // Sort
+  if (sortNewest) {
+    indices.sort((a, b) => allBookmarks[b]._timestamp - allBookmarks[a]._timestamp);
+  } else {
+    indices.sort((a, b) => allBookmarks[a]._timestamp - allBookmarks[b]._timestamp);
+  }
+
+  filteredIndices = indices;
+  measuredHeights = {};
+  updateResultCount();
+  resetVirtualScroll();
+}
+
+function updateResultCount() {
+  const total = allBookmarks.length;
+  const shown = filteredIndices.length;
+  const parts = [];
+  if (activeFolder) parts.push(`in "${activeFolder}"`);
+  if (searchQuery) parts.push(`matching "${searchQuery}"`);
+  resultCountEl.textContent = parts.length
+    ? `${shown.toLocaleString()} of ${total.toLocaleString()} ${parts.join(' ')}`
+    : `${total.toLocaleString()} bookmarks`;
+}
+
+// ---- Virtual Scroll ----
+function resetVirtualScroll() {
+  feedEl.scrollTop = 0;
+  visibleRange = { start: -1, end: -1 };
+
+  if (filteredIndices.length === 0) {
+    feedInnerEl.style.height = 'auto';
+    feedInnerEl.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 24 24"><path d="M10.25 3.75c-3.59 0-6.5 2.91-6.5 6.5s2.91 6.5 6.5 6.5c1.795 0 3.419-.726 4.596-1.904 1.178-1.177 1.904-2.801 1.904-4.596 0-3.59-2.91-6.5-6.5-6.5zm-8.5 6.5c0-4.694 3.806-8.5 8.5-8.5s8.5 3.806 8.5 8.5c0 1.986-.682 3.815-1.824 5.262l4.781 4.781-1.414 1.414-4.781-4.781c-1.447 1.142-3.276 1.824-5.262 1.824-4.694 0-8.5-3.806-8.5-8.5z"/></svg>
+      <h3>No bookmarks found</h3>
+      <p>Try a different search or folder</p>
+    </div>`;
+    return;
+  }
+
+  // Use estimated heights
+  positionCache = [];
+  let y = 0;
+  for (let i = 0; i < filteredIndices.length; i++) {
+    const h = measuredHeights[filteredIndices[i]] || ITEM_HEIGHT_EST;
+    positionCache.push({ top: y, height: h });
+    y += h;
+  }
+  totalHeight = y;
+  feedInnerEl.style.height = totalHeight + 'px';
+  renderVisible();
+}
+
+function renderVisible() {
+  const scrollTop = feedEl.scrollTop;
+  const viewHeight = feedEl.clientHeight;
+
+  // Binary search for first visible item
+  let lo = 0, hi = positionCache.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (positionCache[mid].top + positionCache[mid].height < scrollTop) lo = mid + 1;
+    else hi = mid;
+  }
+  const start = Math.max(0, lo - OVERSCAN);
+
+  // Find last visible
+  let end = start;
+  while (end < positionCache.length && positionCache[end].top < scrollTop + viewHeight) end++;
+  end = Math.min(positionCache.length - 1, end + OVERSCAN);
+
+  // Only re-render if range changed
+  if (start === visibleRange.start && end === visibleRange.end) return;
+  visibleRange = { start, end };
+
+  // Render
+  const fragment = document.createDocumentFragment();
+  for (let i = start; i <= end && i < filteredIndices.length; i++) {
+    const bIdx = filteredIndices[i];
+    const bookmark = allBookmarks[bIdx];
+    const el = createTweetElement(bookmark, bIdx, i);
+    el.style.top = positionCache[i].top + 'px';
+    fragment.appendChild(el);
+  }
+  feedInnerEl.innerHTML = '';
+  feedInnerEl.appendChild(fragment);
+
+  // Measure actual heights and recalc if needed
+  let needRecalc = false;
+  const children = feedInnerEl.children;
+  for (let c = 0; c < children.length; c++) {
+    const child = children[c];
+    const vIdx = parseInt(child.dataset.vidx);
+    const bIdx = filteredIndices[vIdx];
+    const actualH = child.offsetHeight;
+    if (Math.abs(actualH - positionCache[vIdx].height) > 2) {
+      positionCache[vIdx].height = actualH;
+      measuredHeights[bIdx] = actualH;
+      needRecalc = true;
+    }
+  }
+
+  if (needRecalc) {
+    let y = 0;
+    for (let i = 0; i < positionCache.length; i++) {
+      positionCache[i].top = y;
+      y += positionCache[i].height;
+    }
+    totalHeight = y;
+    feedInnerEl.style.height = totalHeight + 'px';
+    // Reposition visible items
+    for (let c = 0; c < children.length; c++) {
+      const vIdx = parseInt(children[c].dataset.vidx);
+      children[c].style.top = positionCache[vIdx].top + 'px';
+    }
+  }
+
+  // Back to top button
+  backToTopBtn.classList.toggle('visible', scrollTop > 1000);
+}
+
+let scrollRaf = null;
+function onScroll() {
+  if (scrollRaf) return;
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = null;
+    renderVisible();
+  });
+}
+
+// ---- Tweet Rendering ----
+function createTweetElement(b, bIdx, vIdx) {
+  const div = document.createElement('div');
+  div.className = 'tweet';
+  div.dataset.vidx = vIdx;
+
+  const authorName = b.author?.name || b.author?.screen_name || `User ${b.author?.user_id?.slice(-4) || '?'}`;
+  const handle = b.author?.screen_name ? `@${b.author.screen_name}` : (b.author?.user_id ? `@user_${b.author.user_id.slice(-6)}` : '');
+  const initial = authorName[0]?.toUpperCase() || '?';
+  const dateStr = formatDate(b._date);
+  const tweetUrl = `https://x.com/i/status/${b.tweet_id}`;
+
+  let html = '';
+
+  // Header
+  html += `<div class="tweet-header">`;
+  if (b.author?.profile_image_url) {
+    html += `<div class="avatar"><img src="${escHtml(b.author.profile_image_url)}" alt="" loading="lazy" onerror="this.parentElement.textContent='${initial}'"></div>`;
+  } else {
+    html += `<div class="avatar">${initial}</div>`;
+  }
+  html += `<div class="tweet-author">`;
+  html += `<span class="author-name">${escHtml(authorName)}${b.author?.verified ? ' <svg viewBox="0 0 24 24" width="16" height="16" fill="#1d9bf0" style="vertical-align:-3px"><path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.34 2.19c-1.39-.46-2.9-.2-3.91.81s-1.27 2.52-.81 3.91C2.63 9.33 1.75 10.57 1.75 12s.88 2.67 2.19 3.34c-.46 1.39-.2 2.9.81 3.91s2.52 1.27 3.91.81c.66 1.31 1.91 2.19 3.34 2.19s2.67-.88 3.34-2.19c1.39.46 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.08 4.71l-4.17-4.17 1.42-1.41 2.75 2.75 5.58-5.58 1.42 1.41-7 7z"/></svg>' : ''}</span>`;
+  html += `<span class="author-handle">${escHtml(handle)}${b.author?.followers_count ? ` · ${formatNum(b.author.followers_count)} followers` : ''}</span>`;
+  html += `</div>`;
+  html += `<span class="tweet-date"><a href="${tweetUrl}" target="_blank" rel="noopener">${dateStr}</a></span>`;
+  html += `</div>`;
+
+  // Reply indicator
+  if (b.in_reply_to_tweet_id) {
+    const replyHandle = b.entities?.mentions?.[0]?.screen_name;
+    if (replyHandle) {
+      html += `<div class="reply-indicator">Replying to <a href="https://x.com/${escHtml(replyHandle)}" target="_blank">@${escHtml(replyHandle)}</a></div>`;
+    } else {
+      html += `<div class="reply-indicator">Replying to a tweet</div>`;
+    }
+  }
+
+  // Tweet text
+  html += `<div class="tweet-text">${renderTweetText(b)}</div>`;
+
+  // Media
+  if (b.media && b.media.length > 0) {
+    html += renderMedia(b.media);
+  }
+
+  // Card
+  if (b.card) {
+    html += renderCard(b.card, b.entities?.urls);
+  }
+
+  // Quoted tweet
+  if (b.quoted_tweet) {
+    html += renderQuotedTweet(b.quoted_tweet);
+  }
+
+  // Metrics
+  const m = b.metrics;
+  if (m) {
+    html += `<div class="tweet-metrics">`;
+    html += `<span class="metric replies"><svg viewBox="0 0 24 24"><path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.25-.893 4.31-2.457 5.83l-5.364 5.21c-.36.35-.928.15-1.015-.36l-.18-1.06c-.15-.89.2-1.78.84-2.37l3.74-3.41c.87-.8 1.36-1.91 1.36-3.07 0-2.41-1.95-4.37-4.36-4.37H9.756c-2.35 0-4.255 1.9-4.255 4.25v.09c0 .98.333 1.93.943 2.69l5.378 6.7c.37.46.2 1.13-.36 1.32l-.94.32c-.72.25-1.51.05-2.02-.51l-5.2-5.71C1.985 12.49 1.751 11.27 1.751 10z"/></svg>${formatNum(m.replies)}</span>`;
+    html += `<span class="metric retweets"><svg viewBox="0 0 24 24"><path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"/></svg>${formatNum(m.retweets)}</span>`;
+    html += `<span class="metric likes"><svg viewBox="0 0 24 24"><path d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-1.243.07-2.349.78-2.91 1.91-.552 1.12-.633 2.78.479 4.82 1.074 1.97 3.257 4.27 7.129 6.61 3.87-2.34 6.052-4.64 7.126-6.61 1.111-2.04 1.03-3.7.477-4.82-.561-1.13-1.666-1.84-2.908-1.91zm4.187 7.69c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z"/></svg>${formatNum(m.likes)}</span>`;
+    if (m.bookmarks) html += `<span class="metric bookmarks"><svg viewBox="0 0 24 24"><path d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5zM6.5 4c-.276 0-.5.22-.5.5v14.56l6-4.29 6 4.29V4.5c0-.28-.224-.5-.5-.5h-11z"/></svg>${formatNum(m.bookmarks)}</span>`;
+    if (m.views) html += `<span class="metric views"><svg viewBox="0 0 24 24"><path d="M8.75 21V3h2v18h-2zM18.75 21V8.5h2V21h-2zM13.75 21v-9h2v9h-2zM3.75 21v-4h2v4h-2z"/></svg>${formatNum(m.views)}</span>`;
+    html += `</div>`;
+  }
+
+  // Folder tags
+  if (b.folders && b.folders.length > 0) {
+    html += `<div class="tweet-folders">`;
+    for (const f of b.folders) {
+      html += `<span class="folder-tag" data-folder="${escHtml(f)}">${escHtml(f)}</span>`;
+    }
+    html += `</div>`;
+  }
+
+  div.innerHTML = html;
+
+  // Folder tag click
+  div.querySelectorAll('.folder-tag').forEach(tag => {
+    tag.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectFolder(tag.dataset.folder);
+    });
+  });
+
+  return div;
+}
+
+function renderTweetText(b) {
+  let text = b.full_text || '';
+
+  // Escape HTML first
+  text = escHtml(text);
+
+  // @mentions -> links
+  text = text.replace(/@(\w+)/g, '<a class="mention" href="https://x.com/$1" target="_blank" rel="noopener">@$1</a>');
+
+  // #hashtags -> links
+  text = text.replace(/#(\w+)/g, '<a class="hashtag" href="https://x.com/search?q=%23$1" target="_blank" rel="noopener">#$1</a>');
+
+  // URLs: replace t.co URLs with expanded URLs from entities
+  if (b.entities?.urls) {
+    for (const u of b.entities.urls) {
+      const escaped = escHtml(u.url);
+      const display = escHtml(u.display_url || u.expanded_url || u.url);
+      const href = escHtml(u.expanded_url || u.url);
+      text = text.replace(escaped, `<a href="${href}" target="_blank" rel="noopener">${display}</a>`);
+    }
+  }
+
+  // Remove remaining t.co media links
+  text = text.replace(/https:\/\/t\.co\/\w+/g, '');
+
+  // Highlight search terms (only in text nodes, not inside HTML tags)
+  if (searchQuery) {
+    const terms = searchQuery.toLowerCase().split(/\s+/).filter(t => t.length > 1);
+    for (const term of terms) {
+      const regex = new RegExp(`(${escRegex(term)})`, 'gi');
+      // Split by HTML tags, only apply highlight to non-tag parts
+      text = text.replace(/(<[^>]+>)|([^<]+)/g, (match, tag, content) => {
+        if (tag) return tag;
+        return content.replace(regex, '<mark>$1</mark>');
+      });
+    }
+  }
+
+  return text.trim();
+}
+
+function renderMedia(media) {
+  const gridClass = media.length > 1 ? ` grid-${Math.min(media.length, 4)}` : '';
+  let html = `<div class="tweet-media${gridClass}">`;
+
+  for (const m of media) {
+    if (m.type === 'photo') {
+      html += `<div class="media-item"><img src="${escHtml(m.url)}" alt="${escHtml(m.alt_text || '')}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=media-placeholder><svg viewBox=&quot;0 0 24 24&quot;><path d=&quot;M2 6c0-1.1.9-2 2-2h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6zm4.5 3.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5S8.83 11 8 11s-1.5-.67-1.5-1.5zM4.5 18h15l-4.5-6-3 4-2.25-3L4.5 18z&quot;/></svg>Image unavailable</div>'"></div>`;
+    } else if (m.type === 'video') {
+      const videoUrl = getBestVideoVariant(m.variants);
+      if (videoUrl) {
+        html += `<div class="media-item"><video src="${escHtml(videoUrl)}" poster="${escHtml(m.thumbnail_url || m.url)}" controls preload="none" playsinline onerror="this.parentElement.innerHTML='<div class=media-placeholder><svg viewBox=&quot;0 0 24 24&quot;><path d=&quot;M8 5v14l11-7z&quot;/></svg>Video unavailable</div>'"></video></div>`;
+      } else {
+        html += `<div class="media-item"><div class="media-placeholder"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Video</div></div>`;
+      }
+    } else if (m.type === 'animated_gif') {
+      const gifUrl = getBestVideoVariant(m.variants);
+      if (gifUrl) {
+        html += `<div class="media-item"><video src="${escHtml(gifUrl)}" poster="${escHtml(m.thumbnail_url || m.url)}" autoplay loop muted playsinline preload="none" onerror="this.parentElement.innerHTML='<div class=media-placeholder>GIF unavailable</div>'"></video><span class="gif-badge">GIF</span></div>`;
+      } else if (m.url) {
+        html += `<div class="media-item"><img src="${escHtml(m.url)}" loading="lazy" alt="GIF"><span class="gif-badge">GIF</span></div>`;
+      }
+    }
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function getBestVideoVariant(variants) {
+  if (!variants || variants.length === 0) return null;
+  // Pick the mp4 with highest bitrate under 2M, or just the best available
+  const mp4s = variants.filter(v => v.content_type === 'video/mp4');
+  if (mp4s.length === 0) return variants[0]?.url || null;
+  mp4s.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+  // Pick one around 800k-1.2M, fallback to best
+  const preferred = mp4s.find(v => v.bitrate && v.bitrate <= 1200000 && v.bitrate >= 400000);
+  return (preferred || mp4s[mp4s.length - 1])?.url || null;
+}
+
+function renderCard(card, urls) {
+  if (card.type?.includes('poll')) {
+    const choices = card.type.match(/poll(\d)choice/);
+    const n = choices ? choices[1] : '?';
+    return `<div class="tweet-poll"><span class="poll-label">Poll (${n} choices)</span></div>`;
+  }
+
+  const url = card.url || (urls && urls[0]?.expanded_url) || '#';
+  let domain = '';
+  try { domain = new URL(url.startsWith('http') ? url : 'https://' + url).hostname.replace('www.', ''); } catch {}
+
+  if (!card.title && !card.description) return '';
+
+  let html = `<a class="tweet-card" href="${escHtml(url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;display:block">`;
+  html += `<div class="card-body">`;
+  if (domain) html += `<div class="card-domain"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>${escHtml(domain)}</div>`;
+  if (card.title) html += `<div class="card-title">${escHtml(card.title)}</div>`;
+  if (card.description) html += `<div class="card-desc">${escHtml(card.description)}</div>`;
+  html += `</div></a>`;
+  return html;
+}
+
+function renderQuotedTweet(qt) {
+  if (qt.status === 'unavailable' || !qt.full_text) {
+    return `<div class="quoted-tweet"><div class="qt-unavailable">This post is unavailable.</div></div>`;
+  }
+
+  const name = qt.author?.name || qt.author?.screen_name || 'User';
+  const handle = qt.author?.screen_name ? `@${qt.author.screen_name}` : '';
+  const initial = name[0]?.toUpperCase() || '?';
+  const url = qt.tweet_id ? `https://x.com/i/status/${qt.tweet_id}` : '#';
+
+  let html = `<a class="quoted-tweet" href="${escHtml(url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;display:block">`;
+  html += `<div class="qt-header"><div class="qt-avatar">${initial}</div>`;
+  html += `<span class="qt-name">${escHtml(name)}</span>`;
+  if (handle) html += `<span class="qt-handle">${escHtml(handle)}</span>`;
+  html += `</div>`;
+  html += `<div class="qt-text">${escHtml(qt.full_text)}</div>`;
+  html += `</a>`;
+  return html;
+}
+
+// ---- Folder Sidebar ----
+function renderFolders(filter) {
+  const fq = (filter || '').toLowerCase();
+  let html = '';
+
+  // "All" item
+  const allCount = allBookmarks.length;
+  html += `<div class="folder-item${!activeFolder ? ' active' : ''}" data-folder="">
+    <span>All Bookmarks</span>
+    <span class="folder-count">${formatNum(allCount)}</span>
+  </div>`;
+
+  // "Unfiled" item
+  const unfiledCount = allBookmarks.filter(b => !b.folders || b.folders.length === 0).length;
+  html += `<div class="folder-item${activeFolder === '__unfiled__' ? ' active' : ''}" data-folder="__unfiled__">
+    <span>Unfiled</span>
+    <span class="folder-count">${formatNum(unfiledCount)}</span>
+  </div>`;
+
+  for (const f of allFolders) {
+    if (fq && !f.name.toLowerCase().includes(fq)) continue;
+    const count = folderMap[f.name]?.length || 0;
+    html += `<div class="folder-item${activeFolder === f.name ? ' active' : ''}" data-folder="${escHtml(f.name)}">
+      <span>${escHtml(f.name)}</span>
+      <span class="folder-count">${formatNum(count)}</span>
+    </div>`;
+  }
+
+  folderListEl.innerHTML = html;
+
+  // Click handlers
+  folderListEl.querySelectorAll('.folder-item').forEach(el => {
+    el.addEventListener('click', () => {
+      selectFolder(el.dataset.folder);
+    });
+  });
+}
+
+function selectFolder(name) {
+  if (name === '') {
+    activeFolder = null;
+  } else if (name === '__unfiled__') {
+    activeFolder = '__unfiled__';
+    // Build unfiled indices on the fly
+    folderMap['__unfiled__'] = [];
+    for (let i = 0; i < allBookmarks.length; i++) {
+      if (!allBookmarks[i].folders || allBookmarks[i].folders.length === 0) {
+        folderMap['__unfiled__'].push(i);
+      }
+    }
+  } else {
+    activeFolder = name;
+  }
+  renderFolders(folderSearchEl.value);
+  applyFilters();
+}
+
+function onFolderFilter() {
+  renderFolders(folderSearchEl.value);
+}
+
+// ---- Search ----
+function onSearch() {
+  searchQuery = searchEl.value.trim();
+  applyFilters();
+}
+
+// ---- Sort ----
+function toggleSort() {
+  sortNewest = !sortNewest;
+  sortBtn.textContent = sortNewest ? 'Newest' : 'Oldest';
+  applyFilters();
+}
+
+// ---- Keyboard ----
+function onKeyDown(e) {
+  if (e.key === '/' && !isInputFocused()) {
+    e.preventDefault();
+    searchEl.focus();
+  } else if (e.key === 'Escape') {
+    if (document.activeElement === searchEl) {
+      searchEl.value = '';
+      searchQuery = '';
+      searchEl.blur();
+      applyFilters();
+    }
+  } else if (e.key === 'g' && !isInputFocused()) {
+    feedEl.scrollTop = 0;
+  }
+}
+
+function isInputFocused() {
+  const tag = document.activeElement?.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA';
+}
+
+// ---- Utility ----
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function formatDate(d) {
+  if (!d || isNaN(d)) return '';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function formatNum(n) {
+  if (n == null) return '0';
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+  return n.toString();
+}
+
+function debounce(fn, ms) {
+  let timer;
+  return function(...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+// ---- Start ----
+init().catch(err => {
+  console.error(err);
+  showError(
+    'Unexpected error during initialization',
+    `${err.name}: ${err.message}`,
+    [
+      `Stack: <code>${escHtml(err.stack?.split('\n').slice(0, 3).join(' <- ') || 'N/A')}</code>`,
+      `Protocol: <code>${window.location.protocol}</code>`,
+      `URL: <code>${escHtml(window.location.href)}</code>`,
+      `User-Agent: <code>${escHtml(navigator.userAgent)}</code>`,
+      `You can also load the file manually below:`
+    ]
+  );
+  showFilePicker('Or load a file manually:');
+});
+</script>
+</body>
+</html>
