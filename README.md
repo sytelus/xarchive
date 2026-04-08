@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icons/icon128.png" alt="xarchive icon" width="80" />
+  <img src="social-preview.jpeg" alt="xarchive -- export your X.com bookmarks" width="640" />
 </p>
 
 <h1 align="center">xarchive</h1>
