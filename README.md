@@ -1,110 +1,114 @@
-# xarchive
+<p align="center">
+  <img src="icons/icon128.png" alt="xarchive icon" width="80" />
+</p>
 
-A Chrome browser extension (Manifest V3) that exports all bookmarks from X.com for a logged-in user, including bookmark folder assignments, and saves them as a complete JSON file.
+<h1 align="center">xarchive</h1>
 
-## Why
+<p align="center">
+  <strong>Export your entire X.com (Twitter) bookmark collection -- no limits, with folders.</strong>
+</p>
 
-- X.com has no native bookmark export feature. The official data archive excludes bookmarks entirely.
-- The official API v2 caps at 800 bookmarks with no folder support.
-- xarchive uses X.com's internal GraphQL API to export your complete bookmark collection with no limit.
+<p align="center">
+  <a href="https://github.com/sytelus/xarchive/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sytelus/xarchive" alt="MIT License" /></a>
+  <a href="https://github.com/sytelus/xarchive/releases"><img src="https://img.shields.io/github/v/release/sytelus/xarchive?include_prereleases&label=version" alt="Version" /></a>
+  <img src="https://img.shields.io/badge/chrome-MV3-brightgreen" alt="Chrome MV3" />
+  <img src="https://img.shields.io/badge/build-zero--dependency-blue" alt="Zero dependency" />
+</p>
+
+---
+
+X.com has no bookmark export. The official data archive excludes bookmarks entirely, and the API v2 caps at 800 with no folder support. **xarchive** is a Chrome extension that uses X.com's internal GraphQL API to export your complete bookmark collection -- every bookmark, every folder, unlimited.
 
 ## Features
 
-- Exports all bookmarks (no 800-bookmark cap)
-- Includes bookmark folder assignments (X Premium feature)
-- Rich data per bookmark: full text, author info, media URLs, engagement metrics, quoted tweets, entities
-- Handles long-form tweets (note tweets), deleted tweets, and visibility-restricted tweets
-- Pause/resume within a run; download partial results after stopping
-- Conservative rate limiting to protect your account
-- JSON output format
+- **Unlimited export** -- no 800-bookmark cap
+- **Folder assignments** -- includes X Premium bookmark folders
+- **Rich data** -- full text, author info, media URLs, engagement metrics, quoted tweets, entities
+- **Robust** -- handles long-form tweets, deleted tweets, and visibility-restricted tweets
+- **Pause / resume** -- stop mid-run and download what you have so far
+- **Account-safe** -- conservative rate limiting (2.5s+ delays) with automatic backoff
+- **Built-in viewer** -- browse your exported bookmarks in a Twitter-like dark UI
+- **Zero dependencies** -- pure JavaScript, no build step, no npm install
+- **Privacy-first** -- runs entirely in your browser; no data is sent anywhere
 
-## Installation
+## Quick Start
 
-xarchive is not on the Chrome Web Store. Install it as an unpacked extension:
-
-1. **Download the source** -- clone this repository or download and extract the ZIP:
-   ```
+1. **Clone the repo**
+   ```bash
    git clone https://github.com/sytelus/xarchive.git
    ```
-2. **Open Chrome's extension page** -- navigate to `chrome://extensions/`
-3. **Enable Developer mode** -- toggle the switch in the top-right corner
-4. **Load the extension** -- click "Load unpacked" and select the cloned repository folder
-5. **Pin it (optional)** -- click the puzzle-piece icon in Chrome's toolbar and pin xarchive for easy access
+2. **Load in Chrome** -- go to `chrome://extensions/`, enable **Developer mode**, click **Load unpacked**, select the `xarchive` folder
+3. **Browse X.com** -- visit any page on x.com so the extension can capture auth credentials in the background
+4. **Export** -- click the xarchive icon in your toolbar, verify the three status dots are green, and click **Start Export**
+5. **Download** -- when complete, click **Download JSON**
 
-The extension icon should now appear in your toolbar.
+> **How long?** Each page fetches ~100 bookmarks with a ~3s delay. Roughly: 1,000 bookmarks in ~30s, 10,000 in ~5 min.
 
 ## Updating
 
-To update to the latest version:
+```bash
+cd xarchive && git pull
+```
+Then go to `chrome://extensions/` and click the refresh icon on the xarchive card.
 
-1. **Pull the latest code**:
-   ```
-   cd xarchive
-   git pull
-   ```
-2. **Reload the extension** -- go to `chrome://extensions/` and click the refresh icon on the xarchive card
-
-The version number and build date are shown in the footer of the export page.
-
-## Usage
-
-1. **Log in to X.com** -- browse any page on X.com so the extension can passively capture your authentication credentials in the background.
-2. **Open the export page** -- click the xarchive extension icon. A new tab opens showing the status dashboard.
-3. **Check status indicators** -- all three dots (credentials, query IDs, user session) should be green. If any are yellow or red, follow the on-screen hints.
-4. **Start the export** -- click "Start Export". The extension automatically discovers the API query IDs it needs (by briefly opening x.com/i/bookmarks in a background tab), then fetches your bookmarks with built-in rate limiting. Bookmark count, page count, and elapsed time are shown in real time.
-5. **Download the JSON** -- when the export completes, click "Download JSON" to save the file.
-
-**How long will it take?** X.com's API does not report your total bookmark count, so the extension cannot show a percentage or ETA. Each page fetches ~100 bookmarks with a ~3 second delay between pages. Rough estimate: 1,000 bookmarks takes ~30 seconds, 10,000 takes ~5 minutes.
+## Usage Details
 
 ### Controls
 
-| Button | When visible | What it does |
-|--------|-------------|--------------|
-| **Start Export** | Idle, stopped, or complete | Clears all stored data and begins a fresh export |
+| Button | When available | What it does |
+|--------|---------------|--------------|
+| **Start Export** | Idle, stopped, or complete | Clears stored data and begins a fresh export |
 | **Pause** | Exporting | Pauses the current run (can be resumed) |
-| **Resume** | Paused | Continues the paused export from where it left off |
-| **Stop** | Exporting or paused | Ends the run; collected data is available for download |
-| **Download JSON** | Stopped or complete | Downloads whatever bookmarks have been collected |
+| **Resume** | Paused | Continues from where it left off |
+| **Stop** | Exporting or paused | Ends the run; partial data available for download |
+| **Download JSON** | Stopped or complete | Downloads collected bookmarks as JSON |
 
 ### Tips
 
-- **Partial downloads**: If you stop an export mid-run, you can still download the bookmarks collected so far.
-- **Rate limiting**: The extension uses conservative delays (2.5s+ between requests) to protect your account. If X.com throttles requests, the extension backs off automatically.
-- **Folders**: If you have X Premium, bookmark folder assignments are included automatically.
-- **Re-downloading**: After a completed or stopped export, you can close and reopen the extension tab -- the download button remains available until you start a new export.
-- **VS Code warnings**: When opening the exported JSON in VS Code, you may see warnings about "ambiguous unicode characters." This is normal -- tweets contain multilingual text (Cyrillic, Arabic, CJK, emoji, etc.) that VS Code flags as lookalike characters. The data is correct; you can safely ignore or dismiss the warning.
+- **Partial downloads** -- stop mid-run and still download everything collected so far.
+- **Folders** -- if you have X Premium, folder assignments are included automatically.
+- **Re-download** -- close and reopen the extension tab; the download button persists until you start a new export.
+- **Rate limiting** -- the extension uses 2.5s+ delays between requests. If X.com throttles, it backs off automatically.
 
-## Viewer
+## Bookmark Viewer
 
-`viewer.html` is a standalone bookmark browser that lets you explore exported JSON files in a dark-themed UI resembling X.com.
+`viewer.html` is a standalone bookmark browser that lets you explore your exported JSON in a dark-themed UI.
 
-**Opening the viewer:**
-
-- **Local file** -- open `viewer.html` in any browser, then drag-and-drop your exported JSON file onto the page (or click to pick a file).
-- **From a URL** -- append `?url=<json-url>` to load a hosted JSON file directly, e.g.:
+**Open it:**
+- **Local file** -- open `viewer.html` in any browser and drag-and-drop your JSON file (or click to pick).
+- **From a URL** -- append `?url=<json-url>` to load a hosted file:
   ```
   viewer.html?url=https://example.com/bookmarks.json
   ```
 
-**Viewer features:**
-
-- Folder sidebar with counts and filter
-- Full-text search across tweet text, author names, handles, and URLs (inverted index for fast lookup)
+**What it offers:**
+- Folder sidebar with counts and search filter
+- Full-text search across tweet text, authors, handles, and URLs
 - Sort by newest or oldest
-- Virtual scrolling for smooth performance with large collections
-- Tweet cards with author info, engagement metrics, media thumbnails, quoted tweets, and folder tags
-- Keyboard shortcut: press `/` to focus the search box
-- IndexedDB caching -- reloading the page reuses previously loaded data without re-parsing
+- Virtual scrolling -- smooth even with tens of thousands of bookmarks
+- Tweet cards with author info, metrics, media, quoted tweets, and folder tags
+- Press `/` to jump to the search box
+- IndexedDB caching -- reload the page without re-parsing
 
-## Links
+## How It Works
 
-- **Repository**: [github.com/sytelus/xarchive](https://github.com/sytelus/xarchive)
-- **Issues**: [github.com/sytelus/xarchive/issues](https://github.com/sytelus/xarchive/issues)
+xarchive uses Chrome's Manifest V3 APIs to passively capture auth headers from your normal X.com browsing, then makes paginated GraphQL requests from the extension's options page. Query IDs are discovered dynamically (they rotate every 2-4 weeks), with JS bundle scraping as a fallback. All data is stored locally in IndexedDB via [Dexie](https://dexie.org/).
 
-## Project Status
+For the technically curious, see [PLAN.md](PLAN.md) for the architecture and [FINDINGS.md](FINDINGS.md) for research on X.com's internal APIs.
 
-See [PLAN.md](PLAN.md) for the implementation plan and [FINDINGS.md](FINDINGS.md) for research findings.
+## Privacy & Security
+
+- **No external servers** -- everything runs locally in your browser.
+- **No tracking** -- no analytics, telemetry, or data collection of any kind.
+- **Your credentials stay local** -- auth tokens are captured from your existing X.com session and never leave the extension.
+- **Open source** -- audit the code yourself.
+
+## Contributing
+
+Contributions are welcome! Please [open an issue](https://github.com/sytelus/xarchive/issues) for bugs or feature requests, or submit a pull request.
+
+Since xarchive is a zero-dependency Chrome extension with no build step, contributing is straightforward: edit the JS files, reload the extension in `chrome://extensions/`, and test.
 
 ## License
 
-MIT
+[MIT](LICENSE)
